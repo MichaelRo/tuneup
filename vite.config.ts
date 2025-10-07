@@ -26,6 +26,7 @@ const httpsConfig = hasCustomCert
 
 export default defineConfig({
   appType: 'spa',
+  base: '/tuneup/',
   build: {
     target: 'es2020',
   },

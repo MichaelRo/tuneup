@@ -11,11 +11,11 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   const wrapper = el('div', {
     className: `auth-status${options.compact ? ' is-compact' : ''}`,
   });
-  wrapper.appendChild(el('span', { className: 'auth-chip', text: 'Connected to Spotify' }));
+  wrapper.appendChild(el('span', { className: 'auth-chip', text: t('cta_connected') }));
   const actions = el('div', { className: 'auth-status-actions' });
   const reconnectBtn = el('button', {
     className: 'ghost-btn',
-    text: 'Switch account',
+    text: t('cta_switch_account'),
     attrs: { 'data-action': 'connect' },
   }) as HTMLButtonElement;
   reconnectBtn.addEventListener('click', event => {
@@ -24,7 +24,7 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   });
   const logoutBtn = el('button', {
     className: 'ghost-btn',
-    text: 'Disconnect',
+    text: t('cta_disconnect'),
     attrs: { 'data-action': 'disconnect' },
   }) as HTMLButtonElement;
   logoutBtn.addEventListener('click', event => {
@@ -94,18 +94,18 @@ export function renderLanding(): Node {
   const heroHighlight = el('div', { className: 'hero-highlight' });
   heroHighlight.appendChild(el('p', { text: t('preview_intro') }));
   const metrics = el('div', { className: 'metric-row' });
-  metrics.appendChild(createMetricCard('Steps', String(STEP_ROUTES.length)));
+  metrics.appendChild(createMetricCard(t('metric_steps'), String(STEP_ROUTES.length)));
 
-  // Only show Artist and Label counts if a source list has been loaded into the state.
   if (state.sourceList) {
     metrics.appendChild(
-      createMetricCard('Artists', formatNumber(getArtistCount(state.sourceList))),
+      createMetricCard(t('metric_artists'), formatNumber(getArtistCount(state.sourceList))),
     );
-    metrics.appendChild(createMetricCard('Labels', formatNumber(getLabelCount(state.sourceList))));
+    metrics.appendChild(
+      createMetricCard(t('metric_labels'), formatNumber(getLabelCount(state.sourceList))),
+    );
   } else {
-    // Show placeholder metrics before a list is loaded. Dynamic counts appear after loading.
-    metrics.appendChild(createMetricCard('Artists', '100+'));
-    metrics.appendChild(createMetricCard('Labels', '10+'));
+    metrics.appendChild(createMetricCard(t('metric_artists'), '100+'));
+    metrics.appendChild(createMetricCard(t('metric_labels'), '10+'));
   }
   heroHighlight.appendChild(metrics);
   hero.appendChild(heroHighlight);

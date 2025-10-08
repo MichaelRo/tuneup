@@ -90,6 +90,13 @@ export type ResolveArtistsResult = {
   unresolved: string[];
   cancelled?: boolean;
 };
+type IncrementalResolveResult = ResolveArtistsResult & {
+  changed: boolean;
+  resolvedCount: number;
+  skippedCount: number;
+  unresolvedCount: number;
+  cancelled: boolean;
+};
 
 function isSkipId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -101,7 +108,8 @@ export async function resolveArtists(
   options: {
     onAmbiguity?: AmbiguityHandler;
   } = {},
-): Promise<ResolveArtistsResult> {
+  onIncrement?: (result: ResolveArtistsResult) => Promise<IncrementalResolveResult>,
+): Promise<ResolveArtistsResult & IncrementalResolveResult> {
   const { onAmbiguity } = options;
   const state = await loadState();
   const cache = state.nameToId ?? {};
@@ -111,6 +119,7 @@ export async function resolveArtists(
   const seenIds = new Set<string>();
   const now = new Date().toISOString();
   let cancelled = false;
+  let finalOutcome: IncrementalResolveResult | null = null;
 
   for (const item of items) {
     if (!item || item.type !== 'artist') continue;
@@ -195,5 +204,21 @@ export async function resolveArtists(
 
   state.nameToId = cache;
   await saveState(state);
-  return { resolved, skipped, unresolved, cancelled };
+
+  if (onIncrement) {
+    finalOutcome = await onIncrement({ resolved, skipped, unresolved, cancelled });
+  }
+
+  return (
+    finalOutcome ?? {
+      resolved,
+      skipped,
+      unresolved,
+      changed: resolved.length > 0 || skipped.length > 0,
+      resolvedCount: resolved.length,
+      skippedCount: skipped.length,
+      unresolvedCount: unresolved.length,
+      cancelled: !!cancelled,
+    }
+  );
 }

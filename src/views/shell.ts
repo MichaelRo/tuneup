@@ -30,11 +30,11 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   const wrapper = el('div', {
     className: `auth-status${options.compact ? ' is-compact' : ''}`,
   });
-  wrapper.appendChild(el('span', { className: 'auth-chip', text: 'Connected to Spotify' }));
+  wrapper.appendChild(el('span', { className: 'auth-chip', text: t('cta_connected') }));
   const actions = el('div', { className: 'auth-status-actions' });
   const reconnectBtn = el('button', {
     className: 'ghost-btn',
-    text: 'Switch account',
+    text: t('cta_switch_account'),
   }) as HTMLButtonElement;
   reconnectBtn.addEventListener('click', event => {
     event.preventDefault();
@@ -42,7 +42,7 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   });
   const logoutBtn = el('button', {
     className: 'ghost-btn',
-    text: 'Disconnect',
+    text: t('cta_disconnect'),
   }) as HTMLButtonElement;
   logoutBtn.addEventListener('click', event => {
     event.preventDefault();

@@ -56,12 +56,12 @@ async function handleApply(button: HTMLButtonElement): Promise<void> {
     state.apply.completedAt = new Date().toISOString();
     await recordOperation();
     invalidateSpotifyCaches();
-    showToast('Plan applied successfully.', 'success');
+    showToast(t('apply_done'), 'success');
   } catch (err) {
     console.error(err);
     state.apply.status = 'error';
-    state.apply.message = 'Apply failed. Check console logs.';
-    showToast('Apply failed.', 'error');
+    state.apply.message = t('error_apply_failed');
+    showToast(t('error_apply_failed'), 'error');
   } finally {
     setLoading(button, false);
     renderRoute();
@@ -139,47 +139,12 @@ function createApplyContent(): HTMLElement {
     return { phase, total, done, status, retries: progress?.retries ?? 0 };
   });
 
-  // TODO: Do I need it back?
   const totalWork = phases.reduce((sum, item) => sum + item.total, 0);
   const doneWork = phases.reduce((sum, item) => sum + Math.min(item.done, item.total), 0);
   const overallPercent = Math.min(
     100,
     totalWork ? Math.floor((doneWork / totalWork) * 100) : state.apply.status === 'done' ? 100 : 0,
   );
-
-  if (totalWork) {
-    const overview = el('div', { className: 'progress-block progress-overview' });
-    const overviewHeader = el('div', { className: 'progress-header' });
-    const headerMain = el('div', { className: 'progress-header-main' });
-    headerMain.appendChild(
-      el('div', { className: 'progress-title', text: t('apply_overall_progress') }),
-    );
-    overviewHeader.appendChild(headerMain);
-    overviewHeader.appendChild(
-      el('span', {
-        className: `progress-status ${
-          state.apply.status === 'done' ? 'progress-status-complete' : 'progress-status-active'
-        }`,
-        text: `${overallPercent}%`,
-      }),
-    );
-    overview.appendChild(overviewHeader);
-    const bar = el('div', { className: 'progress-bar' });
-    const inner = el('div', { className: 'progress-inner' });
-    inner.style.width = `${overallPercent}%`;
-    bar.appendChild(inner);
-    overview.appendChild(bar);
-    overview.appendChild(
-      el('div', {
-        className: 'progress-meta',
-        text: t('apply_overall_counts', {
-          done: formatNumber(doneWork),
-          total: formatNumber(totalWork),
-        }),
-      }),
-    );
-    container.appendChild(overview);
-  }
 
   if (totalWork) {
     const overview = el('div', { className: 'progress-block progress-overview' });
@@ -257,7 +222,6 @@ function createApplyContent(): HTMLElement {
   });
   container.appendChild(progressContainer);
 
-  // TODO: Do I need it back?
   if (state.apply.message) {
     container.appendChild(
       el('div', { className: 'muted apply-message', text: state.apply.message }),
@@ -273,7 +237,6 @@ function createApplyContent(): HTMLElement {
     e.preventDefault();
     if (state.apply.status !== 'running') void handleApply(startBtn);
   });
-  // TODO: Do I need it back?
   if (!totals.unfollow && !totals.tracks && !totals.albums) {
     startBtn.setAttribute('disabled', 'true');
   }
@@ -293,7 +256,7 @@ function createApplyContent(): HTMLElement {
 
 export function renderApplyStep(): Node {
   if (!state.plan) {
-    showToast('Generate a plan preview first.', 'warning');
+    showToast(t('generate_preview_prompt'), 'warning');
     navigate('#/preview');
     return document.createDocumentFragment();
   }

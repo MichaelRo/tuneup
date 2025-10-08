@@ -11,7 +11,6 @@ function buildCsvRows(): Array<Record<string, string>> {
   if (!state.plan) return [];
   const rows: Array<Record<string, string>> = [];
 
-  // #TODO: Decide which is better
   state.plan.evidence?.forEach(item => {
     rows.push({
       kind: item.kind,
@@ -26,42 +25,12 @@ function buildCsvRows(): Array<Record<string, string>> {
     rows.push({
       kind: 'summary',
       id: '-',
-      title: 'No evidence recorded',
+      title: t('report_no_evidence'),
       label: '',
       year: '',
       generatedAt: state.planGeneratedAt ?? '',
     });
   }
-
-  // const artistLookup = new Map(state.resolvedArtists.map(a => [a.id, a]));
-
-  // state.plan.artistsToUnfollow.forEach(artistId => {
-  //   const artist = artistLookup.get(artistId);
-  //   rows.push({
-  //     type: 'unfollowed_artist',
-  //     id: artistId,
-  //     name: artist?.name ?? artistId,
-  //     source_name: artist?.input ?? artist?.name ?? artistId,
-  //   });
-  // });
-
-  // state.plan.tracksToRemove.forEach(track => {
-  //   rows.push({
-  //     type: 'removed_track',
-  //     id: track.id,
-  //     name: track.name ?? track.id,
-  //     artists: track.artistNames.join('; '),
-  //   });
-  // });
-
-  // state.plan.albumsToRemove.forEach(album => {
-  //   rows.push({
-  //     type: 'removed_album',
-  //     id: album.id,
-  //     name: album.name ?? album.id,
-  //     artists: album.artistNames.join('; '),
-  //   });
-  // });
 
   return rows;
 }
@@ -76,16 +45,19 @@ function createReportContent(): HTMLElement {
 
   const metaList = el('ul', { className: 'report-meta' });
   if (state.sourceList?.title) {
-    metaList.appendChild(el('li', { text: `Source: ${state.sourceList.title}` }));
+    metaList.appendChild(el('li', { text: `${t('report_source')}: ${state.sourceList.title}` }));
   }
-  // TODO: Do I need it back?
-  metaList.appendChild(el('li', { text: `Provider: ${state.sourceList?.provider ?? 'custom'}` }));
+  metaList.appendChild(
+    el('li', { text: `${t('report_provider')}: ${state.sourceList?.provider ?? 'custom'}` }),
+  );
   if (state.sourceList?.version) {
-    metaList.appendChild(el('li', { text: `Version: ${state.sourceList.version}` }));
+    metaList.appendChild(el('li', { text: `${t('report_version')}: ${state.sourceList.version}` }));
   }
   if (state.planGeneratedAt) {
     metaList.appendChild(
-      el('li', { text: `Generated: ${new Date(state.planGeneratedAt).toLocaleString()}` }),
+      el('li', {
+        text: `${t('report_generated')}: ${new Date(state.planGeneratedAt).toLocaleString()}`,
+      }),
     );
   }
   container.appendChild(metaList);
@@ -115,7 +87,7 @@ function createReportContent(): HTMLElement {
 
 export function renderReportStep(): Node {
   if (!state.plan) {
-    navigate('#/dryrun');
+    navigate('#/preview');
     return document.createDocumentFragment();
   }
   const content = createReportContent();

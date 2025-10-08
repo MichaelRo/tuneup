@@ -9,6 +9,7 @@ export type ArtistDisplay = {
   name: string;
   input?: string | null;
   imageUrl?: string | null;
+  isFollowing?: boolean;
 };
 
 export type ArtistInfoOptions = {
@@ -32,11 +33,6 @@ export function createLoadingCard(message: string): HTMLElement {
   row.appendChild(el('span', { text: message }));
   card.appendChild(row);
   return card;
-}
-
-export function isArtistFollowed(id?: string | null): boolean {
-  if (!id) return false;
-  return state.followingArtistIds.includes(id);
 }
 
 export function findSourceItemByName(name: string): Item | undefined {
@@ -99,7 +95,7 @@ export function buildArtistDetails(
     nameEl.classList.add('artist-chip-name');
   }
   header.appendChild(nameEl);
-  if (showFollow && isArtistFollowed(entry.id)) {
+  if (showFollow && entry.isFollowing) {
     header.appendChild(
       el('span', {
         className: 'follow-badge',

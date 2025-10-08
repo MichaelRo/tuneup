@@ -2,42 +2,50 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { defineConfig } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+import { defineConfig, type ServerOptions } from 'vite';
 
-const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)));
-const certDir = process.env.VITE_DEV_CERT_DIR
-  ? resolve(rootDir, process.env.VITE_DEV_CERT_DIR)
-  : resolve(rootDir, 'certs');
-const certPath = process.env.VITE_DEV_CERT
-  ? resolve(rootDir, process.env.VITE_DEV_CERT)
-  : resolve(certDir, 'localhost.pem');
-const keyPath = process.env.VITE_DEV_KEY
-  ? resolve(rootDir, process.env.VITE_DEV_KEY)
-  : resolve(certDir, 'localhost-key.pem');
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-// Support local HTTPS dev/preview with custom or default certs. Override with env vars as needed.
-const hasCustomCert = existsSync(certPath) && existsSync(keyPath);
-const httpsConfig = hasCustomCert
-  ? {
+function getHttpsConfig() {
+  const certPath = process.env.VITE_DEV_CERT
+    ? resolve(__dirname, process.env.VITE_DEV_CERT)
+    : resolve(__dirname, 'certs/localhost.pem');
+
+  const keyPath = process.env.VITE_DEV_KEY
+    ? resolve(__dirname, process.env.VITE_DEV_KEY)
+    : resolve(__dirname, 'certs/localhost-key.pem');
+
+  if (existsSync(certPath) && existsSync(keyPath)) {
+    return {
       cert: readFileSync(certPath),
       key: readFileSync(keyPath),
-    }
-  : false;
+    };
+  }
+
+  return undefined;
+}
+
+const serverOptions: ServerOptions = {
+  https: getHttpsConfig(),
+  host: 'localhost',
+};
 
 export default defineConfig(({ command }) => ({
   appType: 'spa',
+  plugins: [
+    visualizer({
+      open: false, // Set to true to automatically open the report
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   base: command === 'build' ? '/tuneup/' : '/',
   build: {
     target: 'es2020',
+    sourcemap: true,
   },
-  server: {
-    https: httpsConfig || undefined,
-    host: 'localhost',
-    port: 5173,
-    open: true,
-  },
-  preview: {
-    https: httpsConfig || undefined,
-    port: 4173,
-  },
+  server: { ...serverOptions, port: 5173, open: true },
+  preview: { ...serverOptions },
 }));

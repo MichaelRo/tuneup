@@ -52,7 +52,7 @@ export function maybeAutoLoadSelectedList(): void {
       );
     } catch (err) {
       console.warn('Auto-load list failed', err);
-      showToast('Unable to auto-load the selected list.', 'warning');
+      showToast(t('error_load_list'), 'warning');
     } finally {
       state.sourceLoading = false;
       renderRoute();
@@ -74,8 +74,8 @@ function renderSourceSummary(list: import('../types/index.js').ArtistList): HTML
   }
 
   const metrics = el('div', { className: 'metric-row' });
-  metrics.appendChild(createMetricCard('Artists', formatNumber(artists)));
-  metrics.appendChild(createMetricCard('Labels', formatNumber(labels)));
+  metrics.appendChild(createMetricCard(t('metric_artists'), formatNumber(artists)));
+  metrics.appendChild(createMetricCard(t('metric_labels'), formatNumber(labels)));
   summary.appendChild(metrics);
 
   if (list.version) {
@@ -141,7 +141,7 @@ export function createSourceContent(): HTMLElement {
   loadBtn.addEventListener('click', async event => {
     event.preventDefault();
     if (!isConnected()) {
-      showToast('Connect with Spotify to continue.', 'warning');
+      showToast(t('resolve_connect_first'), 'warning');
       return;
     }
     maybeAutoLoadSelectedList();
@@ -152,7 +152,7 @@ export function createSourceContent(): HTMLElement {
   nextBtn.addEventListener('click', event => {
     event.preventDefault();
     if (!state.sourceList) {
-      showToast('Load a list before continuing.', 'warning');
+      showToast(t('toast_load_list_first'), 'warning');
       return;
     }
     navigate('#/resolve');

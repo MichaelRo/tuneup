@@ -654,6 +654,34 @@ export async function albumsFull(
   return result;
 }
 
+export async function artistsFull(
+  ids: string[],
+): Promise<
+  Array<{ id: string; name: string; followers: { total: number }; images: Array<{ url: string }> }>
+> {
+  if (!ids.length) return [];
+  const result: Array<{
+    id: string;
+    name: string;
+    followers: { total: number };
+    images: Array<{ url: string }>;
+  }> = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const slice = ids.slice(i, i + 50);
+    const params = new URLSearchParams({ ids: slice.join(',') });
+    const payload = await apiGET<{
+      artists: Array<{
+        id: string;
+        name: string;
+        followers: { total: number };
+        images: Array<{ url: string }>;
+      }>;
+    }>(`/artists?${params.toString()}`);
+    result.push(...payload.artists);
+  }
+  return result;
+}
+
 export async function unfollowArtists(ids: string[], hooks?: ApiHooks): Promise<void> {
   const batches = chunk(ids, MUTATION_BATCH_LIMIT);
   for (const batch of batches) {

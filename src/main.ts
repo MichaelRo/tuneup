@@ -1,13 +1,12 @@
 import { HAS_SINGLE_LIST, FIRST_STEP_HASH } from './app/config';
 import { initRouting, navigate, renderRoute, handleRouteActions } from './app/routing';
-import { setConnected } from './app/state';
-import { initI18n, onLangChange } from './lib/i18n';
-import { handleAuthCallback } from './lib/spotify';
+import { isConnected, setConnected } from './app/state';
+import { initI18n, onLangChange, t } from './lib/i18n';
+import { handleAuthCallback, hasToken } from './lib/spotify';
 import { showToast } from './lib/ui';
 import './styles/global.css';
 import type { ToastType } from './types/ui';
 
-// Accessibility: Add ARIA live region for toasts if not present
 const ensureToastLiveRegion = () => {
   if (document.getElementById('toast-live-region')) return;
   const region = document.createElement('div');
@@ -19,7 +18,6 @@ const ensureToastLiveRegion = () => {
   document.body.appendChild(region);
 };
 
-// Patch showToast to update ARIA live region
 const originalShowToast = showToast;
 function showToastWithAria(message: string, tone: ToastType = 'info') {
   ensureToastLiveRegion();
@@ -27,12 +25,15 @@ function showToastWithAria(message: string, tone: ToastType = 'info') {
   if (toastRegion) toastRegion.textContent = message;
   return originalShowToast(message, tone);
 }
-// Replace showToast globally
 window.showToast = showToastWithAria;
 
 async function init(): Promise<void> {
   initI18n();
   initRouting();
+
+  if (hasToken() && !isConnected()) {
+    setConnected(true);
+  }
 
   try {
     const result = await handleAuthCallback();
@@ -44,7 +45,7 @@ async function init(): Promise<void> {
     }
   } catch (err) {
     console.error('Auth callback failed', err);
-    showToastWithAria('Could not complete Spotify connection.', 'error');
+    showToastWithAria(t('error_auth_connect'), 'error');
   }
   renderRoute();
   window.addEventListener('hashchange', renderRoute);

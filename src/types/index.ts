@@ -21,6 +21,7 @@ export type ResolvedArtist = {
   name: string;
   followers?: number;
   imageUrl?: string;
+  isFollowing?: boolean;
 };
 
 export type TrackArtist = {

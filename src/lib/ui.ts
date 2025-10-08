@@ -214,7 +214,15 @@ export function showChoiceModal<T>({
   });
 }
 
-export function showSimpleModal({ title, body }: { title: string; body: Node }): void {
+export function showSimpleModal({
+  title,
+  body,
+  onClose,
+}: {
+  title: string;
+  body: Node;
+  onClose?: () => void;
+}): void {
   const backdrop = el('div', { className: 'modal-backdrop modal-visible' });
   const modal = el('div', { className: 'modal' });
   modal.appendChild(el('div', { className: 'modal-header', text: title }));
@@ -232,6 +240,7 @@ export function showSimpleModal({ title, body }: { title: string; body: Node }):
   const cleanup = () => {
     backdrop.classList.remove('modal-visible');
     window.setTimeout(() => backdrop.remove(), 200);
+    onClose?.();
     document.removeEventListener('keydown', handleKey);
   };
 

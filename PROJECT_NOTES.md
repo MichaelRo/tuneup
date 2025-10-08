@@ -25,9 +25,9 @@
 
 1. **Source (`#/app`)** – load the No Music For Genocide list or bring your own (paste/file/URL). Displays artist/label counts and metadata.
 2. **Resolve (`#/resolve`)** – semi-automatic artist matching with `resolveArtists`; stores confirmed matches and skipped entries, preserving work between sessions via `loadState`/`updateState`.
-3. **Dry-run (`#/dryrun`)** – assemble a plan with `buildPlan`, summarise affected follows, liked tracks, and saved albums. Options include strict primary artist matching, include albums, and label cleanup.
+3. **Preview (`#/preview`)** – assemble a plan with `buildPlan`, summarise affected follows, liked tracks, and saved albums. Options include strict primary artist matching, include albums, and label cleanup.
 4. **Apply (`#/apply`)** – run the plan in three phases (`unfollow`, `tracks`, `albums`) through `runPlan`. Emits structured progress events for UI updates and rate-limit messaging.
-5. **Report (`#/report`)** – export JSON/CSV summaries of the executed plan for audit/undo assistance.
+5. **Report (`#/report`)** – export JSON/CSV summaries of the executed plan for auditing.
 
 ## Core Modules (quick map)
 
@@ -39,10 +39,10 @@
 - [`src/lib/report.ts`](./src/lib/report.ts) – JSON + CSV export helpers for the post-apply step.
 - [`src/lib/i18n.ts`](./src/lib/i18n.ts) – en/ he locale tables, direction handling, and formatting helpers.
 
-## Preview & Progress UX (current state)
+## UX Highlights (current state)
 
-- Preview generation exposes staged progress (`following`, `tracks`, `albums`, `enrich`) with overall % and stage counters (`state.previewProgress`).
-- Apply view now surfaces:
+- **Artist Resolver**: Features incremental loading, "Following" badges for context, and sorting controls in both the preview grid and the full artist roster modal.
+- **Apply View**: Provides detailed progress updates with an overall summary card and per-phase status blocks (Queued, In progress, Done, etc.), including retry and rate-limit feedback.
   - An overall progress card with percent + counts across all phases.
   - Per-phase blocks showing status (Queued / In progress / Done / Skipped / Needs attention), retry counts, and animated bars.
   - Visual badges (`buildPhaseBadge`) driven by `APPLY_PHASES` for consistency and accessibility (text-based, no icons).
@@ -74,15 +74,16 @@
 - `npm run dev` for Vite dev server, `npm run build` for production bundle, `npm run preview` for static sanity checks.
 - ESLint/Prettier via configured scripts; repository tracks formatting with `prettier.config.cjs`.
 - Use `npm run typecheck` after significant TypeScript changes (ensures state/DOM helpers stay aligned).
+- Bundle size analysis is available via `npm run build`, which generates a `dist/stats.html` report.
 
 ## Working Agreements & Ongoing Ideas
 
 - Maintain this file as a living reference when we add features or clarify behaviours; summarise new UI/UX decisions (like apply progress and label badges) so future collaborators can ramp quickly.
 - Document new translations whenever we add locale keys (see `src/lib/i18n.ts`).
 - TODO backlog (high-level):
-  - Expand per-phase telemetry (batch counts, per-item breakdown) if we expose deeper analytics.
   - Consider playlist support toggle if playlist hygiene enters scope; keep public messaging focused on current functionality.
   - Track potential undo/export improvements tied to `state.ops` history.
+  - Expand per-phase telemetry (batch counts, per-item breakdown) if we expose deeper analytics.
 
 ## 2025-10-06 Release Prep Session
 

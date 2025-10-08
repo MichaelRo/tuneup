@@ -57,11 +57,9 @@ function buildLabelReason(labels: string[]): HTMLElement {
   wrapper.appendChild(
     el('span', { className: 'reason-label-prefix', text: t('plan_label_prefix') }),
   );
-  const chips = el('div', { className: 'reason-label-chips' });
   labels.forEach(label => {
-    chips.appendChild(el('span', { className: 'reason-label', text: label }));
+    wrapper.appendChild(el('span', { className: 'reason-label', text: label }));
   });
-  wrapper.appendChild(chips);
   return wrapper;
 }
 

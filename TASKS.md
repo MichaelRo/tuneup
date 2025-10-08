@@ -7,21 +7,22 @@
 - [x] Introduced CI workflow to run lint/typecheck/test/build on pushes.
 - [x] Expanded Vitest coverage for planner, resolver, and apply flows.
 - [x] Documented new DX scripts and HTTPS env options in README.
+- [x] Reintroduced type-aware linting for stricter type checking.
+- [x] Evaluated and improved DOM query safety to remove non-null assertions.
+- [x] Added bundle-size monitoring with `rollup-plugin-visualizer`.
+- [x] Reviewed and confirmed Spotify API rate-limit handling.
+- [x] Explored and prepared for publishing via GitHub Pages deploy workflow.
 
 Use this file to capture follow-up work that is out of scope for the current session but should remain visible. Triage items regularly and move completed tasks into commit messages or project notes as appropriate.
 
 ## Pending
 
-- [ ] Reintroduce type-aware linting (`typescript-eslint` recommendedTypeChecked / eslint-plugin security) once noise is addressed.
-- [ ] Evaluate TypeScript `strict` options for DOM `querySelector` usages to trim redundant non-null assertions.
-- [ ] Add bundle-size monitoring (e.g., `source-map-explorer` or Vite analyze) as part of release checklist.
-- [ ] Review Spotify API rate-limit handling for exponential backoff tuning before GA.
+_No pending tasks._
 
 ## Ideas / Nice-to-have
 
-- [ ] Prototype type-safe localStorage wrapper that encodes state schema with runtime validation.
+- [ ] **Low-hanging fruit**: Improve the type-safe `localStorage` wrapper in `src/lib/state.ts` by using a schema validation library like `zod` to ensure data integrity between sessions.
 - [ ] Investigate automated accessibility snapshot testing (axe-core integration during Vitest runs).
-- [ ] Explore publishing GitHub Pages deploy workflow once CI stabilises.
 
 ## Engineering Ambitions & Values
 

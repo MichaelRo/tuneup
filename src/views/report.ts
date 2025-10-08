@@ -91,5 +91,5 @@ export function renderReportStep(): Node {
     return document.createDocumentFragment();
   }
   const content = createReportContent();
-  return buildShell(content, { activeHash: '#/report', title: t('wizard_title') });
+  return buildShell(content, { activeHash: '#/report', title: t('stepper_title') });
 }

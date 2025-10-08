@@ -73,7 +73,7 @@ export function renderLanding(): Node {
       el('a', {
         className: 'primary-btn',
         attrs: { href: FIRST_STEP_HASH },
-        text: t('cta_open_wizard'),
+        text: t('cta_open_app'),
       }),
     );
   }

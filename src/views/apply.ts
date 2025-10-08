@@ -261,5 +261,5 @@ export function renderApplyStep(): Node {
     return document.createDocumentFragment();
   }
   const content = createApplyContent();
-  return buildShell(content, { activeHash: '#/apply', title: t('wizard_title') });
+  return buildShell(content, { activeHash: '#/apply', title: t('stepper_title') });
 }

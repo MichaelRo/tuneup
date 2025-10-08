@@ -182,5 +182,5 @@ export function renderSourceStep(): Node {
   }
   const content = createSourceContent();
   maybeAutoLoadSelectedList();
-  return buildShell(content, { activeHash: '#/app', title: t('wizard_title') });
+  return buildShell(content, { activeHash: '#/app', title: t('stepper_title') });
 }

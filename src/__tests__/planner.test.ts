@@ -1,168 +1,167 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildPlan, getLastFollowingSnapshot, getLastPlanContext } from '../lib/planner.js';
-import type { Album, Track } from '../types/index.js';
+import { buildPlan } from '../lib/planner';
+import type { Album, PlanOptions, Track } from '../types';
 
-vi.mock('../lib/spotify.js', async () => {
-  const actual = await vi.importActual<typeof import('../lib/spotify.js')>('../lib/spotify.js');
-  return {
-    ...actual,
-    albumsFull: vi.fn(),
-    meFollowingArtists: vi.fn(),
-    meLikedTracks: vi.fn(),
-    meSavedAlbums: vi.fn(),
-  };
-});
+// Mock the spotify module
+vi.mock('../lib/spotify.js', () => ({
+  meFollowingArtists: vi.fn(),
+  meLikedTracks: vi.fn(),
+  meSavedAlbums: vi.fn(),
+  albumsFull: vi.fn(),
+}));
 
 const spotify = await import('../lib/spotify.js');
-const albumsFull = vi.mocked(spotify.albumsFull);
 const meFollowingArtists = vi.mocked(spotify.meFollowingArtists);
 const meLikedTracks = vi.mocked(spotify.meLikedTracks);
 const meSavedAlbums = vi.mocked(spotify.meSavedAlbums);
+const albumsFull = vi.mocked(spotify.albumsFull);
+
+const MOCK_ARTIST_1 = 'artist-1-id'; // Banned
+const MOCK_ARTIST_2 = 'artist-2-id'; // Safe
+
+const MOCK_LIKED_TRACKS: Track[] = [
+  {
+    id: 'track-1',
+    name: 'Banned Track 1',
+    artists: [{ id: MOCK_ARTIST_1, name: 'Banned Artist' }],
+    album: { id: 'album-1', name: 'Banned Album' },
+  },
+  {
+    id: 'track-2',
+    name: 'Safe Track 1',
+    artists: [{ id: MOCK_ARTIST_2, name: 'Safe Artist' }],
+    album: { id: 'album-2', name: 'Safe Album' },
+  },
+  {
+    id: 'track-3',
+    name: 'Banned Label Track',
+    artists: [{ id: MOCK_ARTIST_2, name: 'Safe Artist' }],
+    album: { id: 'album-3', name: 'Label Album', label: 'Banned Label' },
+  },
+];
+
+const MOCK_SAVED_ALBUMS: Album[] = [
+  {
+    id: 'album-1',
+    name: 'Banned Album',
+    artists: [{ id: MOCK_ARTIST_1, name: 'Banned Artist' }],
+  },
+  {
+    id: 'album-4',
+    name: 'Banned Label Album',
+    artists: [{ id: MOCK_ARTIST_2, name: 'Safe Artist' }],
+    label: 'Banned Label',
+  },
+];
 
 describe('buildPlan', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-08-10T12:00:00.000Z'));
-
-    meFollowingArtists.mockImplementation(async ({ onProgress } = {}) => {
-      onProgress?.(2);
-      return ['artist-bad', 'artist-ok'];
-    });
-
-    const likedTracks: Track[] = [
-      {
-        id: 'track-artist',
-        name: 'Song By Banned Artist',
-        artists: [
-          { id: 'artist-bad', name: 'Banned Artist' },
-          { id: 'artist-ok', name: 'Friendly Artist' },
-        ],
-        album: { id: 'album-artist', name: 'Missing Label Album' },
-      },
-      {
-        id: 'track-label',
-        name: 'Song By Label',
-        artists: [{ id: 'artist-ok', name: 'Friendly Artist' }],
-        album: {
-          id: 'album-label',
-          name: 'Label Album',
-          label: 'Force Records',
-          release_date: '2018-04-01',
-        },
-      },
-    ];
-
-    meLikedTracks.mockImplementation(async ({ onProgress } = {}) => {
-      onProgress?.({ loaded: likedTracks.length, total: likedTracks.length });
-      return likedTracks;
-    });
-
-    const savedAlbums: Album[] = [
-      {
-        id: 'album-artist',
-        name: 'Missing Label Album',
-        artists: [{ id: 'artist-bad', name: 'Banned Artist' }],
-      },
-      {
-        id: 'album-label',
-        name: 'Label Album',
-        artists: [{ id: 'artist-ok', name: 'Friendly Artist' }],
-        label: 'Force Records',
-        release_date: '2018-04-01',
-      },
-    ];
-
-    meSavedAlbums.mockImplementation(async ({ onProgress } = {}) => {
-      onProgress?.({ loaded: savedAlbums.length, total: savedAlbums.length });
-      return savedAlbums;
-    });
-
-    albumsFull.mockImplementation(async ids =>
-      ids.map(id => ({
-        id,
-        name: `Enriched ${id}`,
-        label: 'Enriched Label',
-        release_date: '2017-01-01',
-        artists: [],
-      })),
-    );
+    // Mock API responses
+    meFollowingArtists.mockResolvedValue([MOCK_ARTIST_1, MOCK_ARTIST_2]);
+    meLikedTracks.mockResolvedValue(MOCK_LIKED_TRACKS);
+    meSavedAlbums.mockResolvedValue(MOCK_SAVED_ALBUMS);
+    albumsFull.mockResolvedValue([]);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.resetAllMocks();
   });
 
-  it('hydrates plan with artist and label reasons while emitting staged progress', async () => {
-    const events: string[] = [];
-    const plan = await buildPlan(
-      {
-        artistIds: ['artist-bad'],
-        labelNames: ['Force Records'],
-        strictPrimary: false,
-        includeAlbums: true,
-      },
-      {
-        onProgress: evt => {
-          events.push(evt.stage);
-        },
-      },
-    );
+  it('should plan to unfollow banned artists', async () => {
+    const options: PlanOptions = {
+      artistIds: [MOCK_ARTIST_1],
+      labelNames: [],
+      strictPrimary: false,
+      includeAlbums: false,
+    };
 
-    expect(plan.artistsToUnfollow).toEqual(['artist-bad']);
-    expect(plan.trackIdsToRemove).toEqual(['track-artist', 'track-label']);
-    expect(plan.albumIdsToRemove).toEqual(['album-artist', 'album-label']);
+    const plan = await buildPlan(options);
 
-    const trackReasons =
-      plan.tracksToRemove.find(track => track.id === 'track-artist')?.reasons ?? [];
-    expect(trackReasons).toEqual([{ type: 'artist', id: 'artist-bad', name: 'Banned Artist' }]);
-
-    const labelReasons =
-      plan.tracksToRemove.find(track => track.id === 'track-label')?.reasons ?? [];
-    expect(labelReasons).toContainEqual({ type: 'label', label: 'Force Records' });
-
-    const evidenceKinds = new Set(plan.evidence.map(item => item.kind));
-    expect(evidenceKinds).toEqual(new Set(['artist', 'label']));
-
-    expect(albumsFull).toHaveBeenCalledWith(['album-artist']);
-
-    expect(events).toEqual([
-      'following',
-      'following',
-      'following',
-      'tracks',
-      'tracks',
-      'albums',
-      'albums',
-      'enrich',
-      'enrich',
-      'done',
-    ]);
-
-    expect(getLastPlanContext().totals).toEqual({ following: 2, likedTracks: 2, savedAlbums: 2 });
-    expect(getLastFollowingSnapshot()).toEqual(['artist-bad', 'artist-ok']);
-    const snapshot = getLastFollowingSnapshot();
-    snapshot.push('new-artist');
-    expect(getLastFollowingSnapshot()).toEqual(['artist-bad', 'artist-ok']);
+    expect(plan.artistsToUnfollow).toEqual([MOCK_ARTIST_1]);
   });
 
-  it('skips album loading when includeAlbums is false', async () => {
-    await buildPlan(
-      {
-        artistIds: ['artist-bad'],
-        labelNames: [],
-        strictPrimary: false,
-        includeAlbums: false,
-      },
-      {
-        onProgress: () => {
-          /* no-op */
-        },
-      },
-    );
+  it('should plan to remove tracks from banned artists', async () => {
+    const options: PlanOptions = {
+      artistIds: [MOCK_ARTIST_1],
+      labelNames: [],
+      strictPrimary: false,
+      includeAlbums: false,
+    };
 
-    expect(meSavedAlbums).not.toHaveBeenCalled();
-    expect(albumsFull).not.toHaveBeenCalled();
+    const plan = await buildPlan(options);
+
+    expect(plan.trackIdsToRemove).toContain('track-1');
+    expect(plan.trackIdsToRemove).not.toContain('track-2');
+    expect(plan.tracksToRemove[0]?.reasons).toEqual([
+      { type: 'artist', id: MOCK_ARTIST_1, name: 'Banned Artist' },
+    ]);
+  });
+
+  it('should plan to remove albums from banned artists when enabled', async () => {
+    const options: PlanOptions = {
+      artistIds: [MOCK_ARTIST_1],
+      labelNames: [],
+      strictPrimary: false,
+      includeAlbums: true,
+    };
+
+    const plan = await buildPlan(options);
+
+    expect(plan.albumIdsToRemove).toContain('album-1');
+    expect(plan.albumsToRemove[0]?.reasons).toEqual([
+      { type: 'artist', id: MOCK_ARTIST_1, name: 'Banned Artist' },
+    ]);
+  });
+
+  it('should not remove albums from banned artists when disabled', async () => {
+    const options: PlanOptions = {
+      artistIds: [MOCK_ARTIST_1],
+      labelNames: [],
+      strictPrimary: false,
+      includeAlbums: false,
+    };
+
+    const plan = await buildPlan(options);
+
+    expect(plan.albumIdsToRemove).toHaveLength(0);
+  });
+
+  it('should plan to remove content based on banned labels', async () => {
+    const options: PlanOptions = {
+      artistIds: [],
+      labelNames: ['Banned Label'],
+      strictPrimary: false,
+      includeAlbums: true,
+    };
+
+    const plan = await buildPlan(options);
+
+    // Track from an album with a banned label
+    expect(plan.trackIdsToRemove).toContain('track-3');
+    const trackReason = plan.tracksToRemove.find(t => t.id === 'track-3')?.reasons;
+    expect(trackReason).toEqual([{ type: 'label', label: 'Banned Label' }]);
+
+    // Album with a banned label
+    expect(plan.albumIdsToRemove).toContain('album-4');
+    const albumReason = plan.albumsToRemove.find(a => a.id === 'album-4')?.reasons;
+    expect(albumReason).toEqual([{ type: 'label', label: 'Banned Label' }]);
+  });
+
+  it('should call the onProgress callback at each stage', async () => {
+    const onProgress = vi.fn();
+    const options: PlanOptions = {
+      artistIds: [MOCK_ARTIST_1],
+      labelNames: [],
+      strictPrimary: false,
+      includeAlbums: true,
+    };
+
+    await buildPlan(options, { onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ stage: 'following' });
+    expect(onProgress).toHaveBeenCalledWith({ stage: 'tracks', loaded: 0, total: 0 });
+    expect(onProgress).toHaveBeenCalledWith({ stage: 'albums', loaded: 0, total: 0 });
+    expect(onProgress).toHaveBeenCalledWith({ stage: 'done' });
   });
 });

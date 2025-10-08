@@ -76,8 +76,8 @@ function buildShellHeader(title: string, subtitle?: string): HTMLElement {
 function buildSidebar(activeHash: WizardRoute): HTMLElement {
   const sidebar = el('aside', { className: 'shell-sidebar' });
   const logoStack = el('div', { className: 'header-stack' });
-  logoStack.appendChild(el('h2', { text: t('wizard_title') }));
-  logoStack.appendChild(el('p', { text: t('wizard_intro') }));
+  logoStack.appendChild(el('h2', { text: t('stepper_title') }));
+  logoStack.appendChild(el('p', { text: t('stepper_intro') }));
   sidebar.appendChild(logoStack);
 
   const stepper = el('nav', { className: 'stepper' });

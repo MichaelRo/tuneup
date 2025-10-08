@@ -314,10 +314,20 @@ function buildResolveStatusBanner(pendingCount: number, skippedCount: number): H
     });
   }
   if (state.autoResolveAttempted && !state.autoResolveCompleted && pendingCount) {
-    return el('div', {
+    const banner = el('div', {
       className: 'resolve-banner resolve-banner-warning',
-      text: t('resolve_banner_paused'),
     });
+    banner.appendChild(el('span', { text: t('resolve_banner_paused') }));
+    const retryBtn = el('button', {
+      className: 'ghost-btn',
+      text: t('resolve_retry_btn'),
+    });
+    retryBtn.addEventListener('click', e => {
+      e.preventDefault();
+      void runAutoResolve({ force: true });
+    });
+    banner.appendChild(retryBtn);
+    return banner;
   }
   if (!pendingCount) {
     const text =
@@ -548,7 +558,7 @@ function showArtistRosterModal(onUpdate?: () => void): void {
       actions.appendChild(reviewBtn);
       const skipBtn = el('button', {
         className: 'secondary-btn',
-        text: t('wizard_skip'),
+        text: t('app_skip'),
       }) as HTMLButtonElement;
       skipBtn.addEventListener('click', async () => {
         skipBtn.disabled = true;
@@ -631,8 +641,6 @@ function showArtistRosterModal(onUpdate?: () => void): void {
 }
 
 function createResolveContent(): HTMLElement {
-  void runAutoResolve();
-
   const container = el('div', { className: 'glass-card step step-resolve' });
   container.appendChild(el('h2', { text: t('step_resolve_title') }));
   container.appendChild(el('p', { text: t('resolve_intro') }));
@@ -683,7 +691,7 @@ function createResolveContent(): HTMLElement {
     previewSection.appendChild(
       el('div', {
         className: 'resolve-status-chip is-pending',
-        text: `${formatNumber(pendingCount)} artist${pendingCount === 1 ? '' : 's'} need review`,
+        text: t('resolve_artists_need_review', { count: formatNumber(pendingCount) }),
       }),
     );
   }
@@ -810,7 +818,7 @@ export function renderResolveStep(): Node {
       maybeAutoLoadSelectedList();
       return buildShell(createLoadingCard(t('source_loading')), {
         activeHash: '#/resolve',
-        title: t('wizard_title'),
+        title: t('stepper_title'),
       });
     }
     showToast(t('toast_load_list_first'), 'warning');
@@ -819,8 +827,22 @@ export function renderResolveStep(): Node {
   }
 
   void hydrateResolvedFromCache();
+
+  // Use IntersectionObserver to trigger auto-resolve only when the element is visible.
+  // This is more reliable on mobile where page visibility can be inconsistent.
+  const observer = new IntersectionObserver(
+    (entries, obs) => {
+      if (entries[0]?.isIntersecting) {
+        void runAutoResolve({ force: true });
+        obs.disconnect(); // Run only once
+      }
+    },
+    { threshold: 0.1 },
+  );
   const content = createResolveContent();
-  return buildShell(content, { activeHash: '#/resolve', title: t('wizard_title') });
+  observer.observe(content);
+
+  return buildShell(content, { activeHash: '#/resolve', title: t('stepper_title') });
 }
 
 function isArtistFollowed(id?: string | null): boolean {

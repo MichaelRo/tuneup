@@ -28,7 +28,7 @@ function showToastWithAria(message: string, tone: ToastType = 'info') {
 window.showToast = showToastWithAria;
 
 async function init(): Promise<void> {
-  initI18n();
+  await initI18n();
   initRouting();
 
   if (hasToken() && !isConnected()) {

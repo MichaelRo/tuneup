@@ -22,7 +22,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     cta_disconnect: 'Disconnect',
     cta_connect: 'Connect with Spotify (preview first)',
     cta_connected: 'Connected to Spotify',
-    cta_open_wizard: 'Open wizard',
+    cta_open_app: 'Open App',
     cta_github: 'View on GitHub',
     hero_title: 'TuneUp: Refresh your Spotify library',
     hero_sub:
@@ -53,13 +53,13 @@ const locales: Record<LocaleId, LocaleStrings> = {
     how_secure_d: 'OAuth (PKCE), no servers, no data stored.',
     how_control_t: "You're in Control",
     how_control_d: 'Always preview the plan, then apply.',
-    wizard_title: 'TuneUp',
+    stepper_title: 'TuneUp',
     step_source_title: 'Select Source',
     step_resolve_title: 'Match Artists',
     step_preview_title: 'Plan Preview',
     step_apply_title: 'Apply Changes',
     step_report_title: 'Export Report',
-    wizard_intro: 'Step-by-step cleanup wizard.',
+    stepper_intro: 'Step-by-step cleanup tool.',
     source_intro: 'Choose a list to target artists and labels.',
     source_default_label: 'No Music For Genocide (default)',
     source_paste_label: 'Paste list',
@@ -79,6 +79,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_next_disabled: 'Review matches or generate a plan preview first.',
     resolve_next_btn: 'Next: Plan Preview',
     resolve_back_btn: 'Back to sources',
+    resolve_retry_btn: 'Retry Scan',
     resolve_matched_artists: 'Matched artists',
     resolve_review_modal_title: 'Review artist matches',
     resolve_ambiguity_modal_title: 'Select the correct artist',
@@ -95,6 +96,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_banner_finished_skipped: 'Scan finished. {count} entries were skipped.',
     resolve_banner_finished_note:
       'Automatic scan finished. You can reload the list anytime to refresh matches.',
+    resolve_artists_need_review: '{count} artist(s) need review',
     resolve_auto_resolved_artists: 'Auto-resolved {count} {label}',
     resolve_skipped_unmatched: 'Skipped {count} unmatched {label}',
     resolve_artists_label: 'artists',
@@ -214,9 +216,9 @@ const locales: Record<LocaleId, LocaleStrings> = {
       'הצהרה רשמית: אנו תומכים במוזיקאים שקוראים לאחריות מוסרית. TuneUp נותן לכם לאסוף את הספרייה — בדרך שלכם.',
     cta_connect: 'התחברו ל-Spotify (תמיד תצוגה מוקדמת קודם)',
     cta_connected: 'מחובר ל-Spotify',
-    cta_open_wizard: 'פתיחת האשף',
+    cta_open_app: 'פתיחת האפליקציה',
     cta_github: 'צפו ב-GitHub',
-    hero_title: 'TuneUp: רעננו את ספריית ה-Spotify שלכם',
+    hero_title: 'TuneUp: רענון ספריית ה-Spotify',
     hero_sub:
       'תגובה בשליטת המשתמש לעצומת “No Music For Genocide”. ניקוי מעקבים, שירים אהובים ואלבומים שמורים — תמיד עם תצוגה מוקדמת לפני ההחלה. קוד פתוח, חופשי, ופועל בדפדפן.',
     does_title: 'מה הכלי עושה',
@@ -245,13 +247,13 @@ const locales: Record<LocaleId, LocaleStrings> = {
     how_secure_d: 'OAuth (PKCE), ללא שרתים, ללא שמירת נתונים.',
     how_control_t: 'השליטה בידיים שלכם',
     how_control_d: 'תמיד תצוגה מוקדמת לפני היישום.',
-    wizard_title: 'TuneUp',
+    stepper_title: 'TuneUp',
     step_source_title: 'בחרו מקור',
     step_resolve_title: 'התאמת אמנים',
     step_preview_title: 'תצוגת תוכנית',
     step_apply_title: 'החילו שינויים',
     step_report_title: 'ייצוא דוח',
-    wizard_intro: 'אשף ניקוי צעד-אחר-צעד.',
+    stepper_intro: 'כלי ניקוי, צעד אחר צעד.',
     source_intro: 'בחרו רשימה כדי למקד אמנים ולייבלים.',
     source_default_label: 'No Music For Genocide (ברירת מחדל)',
     source_paste_label: 'הדביקו רשימה',
@@ -271,6 +273,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_next_disabled: 'השלימו התאמות או צרו תצוגה מוקדמת תחילה.',
     resolve_next_btn: 'הבא: תצוגת תוכנית',
     resolve_back_btn: 'חזרה למקורות',
+    resolve_retry_btn: 'סרוק שוב',
     resolve_matched_artists: 'אמנים שהותאמו',
     resolve_review_modal_title: 'סקירת התאמות אמנים',
     resolve_ambiguity_modal_title: 'בחרו את האמן הנכון',
@@ -287,6 +290,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_banner_finished_skipped: 'הסריקה הסתיימה. דילגו על {count} רשומות.',
     resolve_banner_finished_note:
       'הסריקה האוטומטית הסתיימה. ניתן לטעון מחדש את הרשימה בכל עת לרענון ההתאמות.',
+    resolve_artists_need_review: '{count} אמנים דורשים בדיקה',
     resolve_auto_resolved_artists: 'הותאמו אוטומטית {count} {label}',
     resolve_skipped_unmatched: 'דילגו על {count} {label} שלא הותאמו',
     resolve_artists_label: 'אמנים',
@@ -430,8 +434,11 @@ function applyDocumentAttrs(lang: LocaleId): void {
   document.documentElement.setAttribute('lang', locale.id);
 }
 
-export function initI18n(): void {
-  applyDocumentAttrs(currentLang);
+export function initI18n(): Promise<void> {
+  return new Promise(resolve => {
+    applyDocumentAttrs(currentLang);
+    resolve();
+  });
 }
 
 export function setLang(lang: LocaleId, options: { updateUrl?: boolean } = {}): void {

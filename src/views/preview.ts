@@ -370,22 +370,22 @@ export function renderPreviewStep(): Node {
       maybeAutoLoadSelectedList();
       return buildShell(createLoadingCard(t('source_loading')), {
         activeHash: '#/resolve',
-        title: t('wizard_title'),
+        title: t('stepper_title'),
       });
     }
     navigate('#/app');
-    return buildShell(createSourceContent(), { activeHash: '#/app', title: t('wizard_title') });
+    return buildShell(createSourceContent(), { activeHash: '#/app', title: t('stepper_title') });
   }
   if (!getArtistInputs().length) {
     showToast('No artists to resolve in the current list.', 'warning');
     if (HAS_SINGLE_LIST) {
       return buildShell(createSourceContent(), {
         activeHash: '#/resolve',
-        title: t('wizard_title'),
+        title: t('stepper_title'),
       });
     }
     navigate('#/app');
-    return buildShell(createSourceContent(), { activeHash: '#/app', title: t('wizard_title') });
+    return buildShell(createSourceContent(), { activeHash: '#/app', title: t('stepper_title') });
   }
   if (!state.resolvedArtists.length) {
     showToast('Resolve at least one artist first.', 'warning');
@@ -393,5 +393,5 @@ export function renderPreviewStep(): Node {
     return document.createDocumentFragment();
   }
   const content = createPreviewContent();
-  return buildShell(content, { activeHash: '#/preview', title: t('wizard_title') });
+  return buildShell(content, { activeHash: '#/preview', title: t('stepper_title') });
 }

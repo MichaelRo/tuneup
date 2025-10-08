@@ -687,7 +687,7 @@ function createResolveContent(): HTMLElement {
       showToast('Resolve at least one artist before continuing.', 'warning');
       return;
     }
-    navigate('#/dryrun');
+    navigate('#/preview');
   });
   if (!state.resolvedArtists.length) {
     nextBtn.setAttribute('disabled', 'true');

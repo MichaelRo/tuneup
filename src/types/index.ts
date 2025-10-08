@@ -103,6 +103,12 @@ export type ProgressEvt = {
   retryAfter?: number;
 };
 
+export type PlanProgress = {
+  stage: 'following' | 'tracks' | 'albums' | 'enrich' | 'done';
+  loaded?: number;
+  total?: number;
+};
+
 export type PurgeState = {
   unfollowed: Record<string, { at: string; source: string }>;
   removedTracksByArtist: Record<string, { trackIds: string[]; at: string }>;

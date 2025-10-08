@@ -1,5 +1,5 @@
-import { curatedLists, HAS_SINGLE_LIST, FIRST_STEP_HASH } from '../app/config.js';
-import { navigate, renderRoute } from '../app/routing.js';
+import { curatedLists, HAS_SINGLE_LIST, FIRST_STEP_HASH } from '../app/config';
+import { navigate, renderRoute } from '../app/routing';
 import {
   state,
   isConnected,
@@ -10,14 +10,14 @@ import {
   initialPreviewProgress,
   autoLoadedLists,
   getArtistInputs,
-} from '../app/state.js';
-import { t, formatNumber } from '../lib/i18n.js';
-import { loadCuratedList } from '../lib/providers.js';
-import { el, showToast, spinner } from '../lib/ui.js';
+} from '../app/state';
+import { t, formatNumber } from '../lib/i18n';
+import { loadCuratedList } from '../lib/providers';
+import { el, showToast, spinner } from '../lib/ui';
 
-import { createMetricCard } from './components.js';
-import { renderResolveStep } from './resolve.js';
-import { buildShell } from './shell.js';
+import { createMetricCard } from './components';
+import { renderResolveStep } from './resolve';
+import { buildShell } from './shell';
 
 function applyNewSource(list: import('../types/index.js').ArtistList): void {
   state.sourceList = list;
@@ -30,7 +30,6 @@ function applyNewSource(list: import('../types/index.js').ArtistList): void {
   state.autoResolveCompleted = false;
   invalidateGeneratedPlan();
   state.previewProgress = initialPreviewProgress();
-  // hydrateResolvedFromCache(); // This will be handled in the resolve step
 }
 
 export function maybeAutoLoadSelectedList(): void {

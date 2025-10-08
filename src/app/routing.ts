@@ -1,15 +1,15 @@
-import { bindLanguageToggles } from '../lib/i18n.js';
-import { beginAuthFlow, clearToken, invalidateSpotifyCaches } from '../lib/spotify.js';
-import { render, renderNode } from '../lib/ui.js';
-import { renderApplyStep } from '../views/apply.js';
-import { renderDryRunStep } from '../views/dryrun.js';
-import { renderLanding } from '../views/landing.js';
-import { renderReportStep } from '../views/report.js';
-import { renderResolveStep } from '../views/resolve.js';
-import { renderSourceStep } from '../views/source.js';
+import { bindLanguageToggles } from '../lib/i18n';
+import { beginAuthFlow } from '../lib/spotify';
+import { render, renderNode } from '../lib/ui';
+import { renderApplyStep } from '../views/apply';
+import { renderLanding } from '../views/landing';
+import { renderPreviewStep } from '../views/preview';
+import { renderReportStep } from '../views/report';
+import { renderResolveStep } from '../views/resolve';
+import { renderSourceStep } from '../views/source';
 
-import { ALL_ROUTES, type WizardRoute, ROUTE_DEFAULT } from './config.js';
-import { isConnected, setConnected } from './state.js';
+import { ALL_ROUTES, type WizardRoute, ROUTE_DEFAULT } from './config';
+import { handleLogout, isConnected } from './state';
 
 const rootElement = document.getElementById('app-root');
 if (!(rootElement instanceof HTMLElement)) {
@@ -23,7 +23,7 @@ export function initRouting(): void {
   routeHandlers.set(ROUTE_DEFAULT, renderLanding);
   routeHandlers.set('#/app', renderSourceStep);
   routeHandlers.set('#/resolve', renderResolveStep);
-  routeHandlers.set('#/dryrun', renderDryRunStep);
+  routeHandlers.set('#/preview', renderPreviewStep);
   routeHandlers.set('#/apply', renderApplyStep);
   routeHandlers.set('#/report', renderReportStep);
 }
@@ -78,9 +78,6 @@ export function handleRouteActions(event: MouseEvent): void {
   if (actionButton?.dataset.action === 'connect') {
     void beginAuthFlow();
   } else if (actionButton?.dataset.action === 'disconnect') {
-    clearToken();
-    invalidateSpotifyCaches();
-    setConnected(false);
-    renderRoute();
+    handleLogout();
   }
 }

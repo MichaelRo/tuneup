@@ -1,9 +1,9 @@
-import { ROUTE_DEFAULT, STEP_ROUTES, type WizardRoute } from '../app/config.js';
-import { navigate, renderRoute } from '../app/routing.js';
-import { isConnected } from '../app/state.js';
-import { getLang, bindLanguageToggles, t } from '../lib/i18n.js';
-import { beginAuthFlow, clearToken, invalidateSpotifyCaches } from '../lib/spotify.js';
-import { el } from '../lib/ui.js';
+import { ROUTE_DEFAULT, STEP_ROUTES, type WizardRoute } from '../app/config';
+import { navigate } from '../app/routing';
+import { handleLogout, isConnected } from '../app/state';
+import { getLang, bindLanguageToggles, t } from '../lib/i18n';
+import { beginAuthFlow } from '../lib/spotify';
+import { el } from '../lib/ui';
 
 function languageToggleNode(): HTMLElement {
   const current = getLang();
@@ -46,9 +46,7 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   }) as HTMLButtonElement;
   logoutBtn.addEventListener('click', event => {
     event.preventDefault();
-    clearToken();
-    invalidateSpotifyCaches();
-    renderRoute();
+    handleLogout();
   });
   actions.appendChild(reconnectBtn);
   actions.appendChild(logoutBtn);
@@ -83,7 +81,7 @@ function buildSidebar(activeHash: WizardRoute): HTMLElement {
   sidebar.appendChild(logoStack);
 
   const stepper = el('nav', { className: 'stepper' });
-  STEP_ROUTES.forEach(({ hash, key }, index) => {
+  STEP_ROUTES.forEach(({ hash, key }, index: number) => {
     const item = el('a', {
       className: `stepper-item${hash === activeHash ? ' is-active' : ''}`,
       attrs: { href: hash },

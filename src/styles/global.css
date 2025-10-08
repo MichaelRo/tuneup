@@ -376,7 +376,7 @@ p {
 }
 
 .resolve-actions,
-.dryrun-actions,
+.preview-actions,
 .apply-actions {
   margin-top: var(--space-4);
   display: flex;
@@ -426,7 +426,7 @@ p {
   color: #f5a623;
 }
 
-.dryrun-options {
+.preview-options {
   display: grid;
   gap: var(--space-3);
   margin: var(--space-4) 0;

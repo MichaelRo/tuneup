@@ -3,9 +3,9 @@
   "compilerOptions": {
     "composite": false,
     "target": "ES2020",
-    "useDefineForClassFields": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

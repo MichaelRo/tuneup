@@ -1,11 +1,11 @@
-import { getCuratedLists } from '../lib/providers.js';
+import { getCuratedLists } from '../lib/providers';
 
 export const curatedLists = getCuratedLists();
 export const HAS_SINGLE_LIST = curatedLists.length === 1;
 
 const STEP_KEYS = HAS_SINGLE_LIST
-  ? (['resolve', 'dryrun', 'apply', 'report'] as const)
-  : (['source', 'resolve', 'dryrun', 'apply', 'report'] as const);
+  ? (['resolve', 'preview', 'apply', 'report'] as const)
+  : (['source', 'resolve', 'preview', 'apply', 'report'] as const);
 
 export const ROUTE_DEFAULT = '#/' as const;
 export const STEP_ROUTES = STEP_KEYS.map(key => {

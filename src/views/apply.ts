@@ -280,8 +280,10 @@ function createApplyContent(): HTMLElement {
   actions.appendChild(startBtn);
 
   if (state.apply.status === 'done') {
-    startBtn.textContent = t('apply_next_btn');
-    startBtn.addEventListener('click', () => navigate('#/report'));
+    const nextBtn = el('button', { className: 'secondary-btn', text: t('apply_next_btn') });
+    nextBtn.addEventListener('click', () => navigate('#/report'));
+    actions.appendChild(nextBtn);
+    startBtn.style.display = 'none';
   } else if (state.apply.status === 'running') {
     setLoading(startBtn, true);
   }
@@ -292,7 +294,7 @@ function createApplyContent(): HTMLElement {
 export function renderApplyStep(): Node {
   if (!state.plan) {
     showToast('Generate a plan preview first.', 'warning');
-    navigate('#/dryrun');
+    navigate('#/preview');
     return document.createDocumentFragment();
   }
   const content = createApplyContent();

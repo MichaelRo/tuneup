@@ -1,11 +1,11 @@
-import { HAS_SINGLE_LIST, FIRST_STEP_HASH } from './app/config.js';
-import { initRouting, navigate, renderRoute, handleRouteActions } from './app/routing.js';
-import { setConnected } from './app/state.js';
-import { initI18n, onLangChange } from './lib/i18n.js';
-import { handleAuthCallback } from './lib/spotify.js';
-import { showToast } from './lib/ui.js';
+import { HAS_SINGLE_LIST, FIRST_STEP_HASH } from './app/config';
+import { initRouting, navigate, renderRoute, handleRouteActions } from './app/routing';
+import { setConnected } from './app/state';
+import { initI18n, onLangChange } from './lib/i18n';
+import { handleAuthCallback } from './lib/spotify';
+import { showToast } from './lib/ui';
 import './styles/global.css';
-import type { ToastType } from './types/ui.js';
+import type { ToastType } from './types/ui';
 
 // Accessibility: Add ARIA live region for toasts if not present
 const ensureToastLiveRegion = () => {
@@ -38,14 +38,13 @@ async function init(): Promise<void> {
     const result = await handleAuthCallback();
     if (result?.ok) {
       setConnected(true);
-      // In single-list mode, auto-load is handled by the resolve step.
       if (!HAS_SINGLE_LIST) {
         if (location.hash !== FIRST_STEP_HASH) navigate(FIRST_STEP_HASH);
       }
     }
   } catch (err) {
     console.error('Auth callback failed', err);
-    showToast('Could not complete Spotify connection.', 'error');
+    showToastWithAria('Could not complete Spotify connection.', 'error');
   }
   renderRoute();
   window.addEventListener('hashchange', renderRoute);

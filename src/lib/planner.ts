@@ -3,6 +3,7 @@ import type {
   Plan,
   PlanContext,
   PlanOptions,
+  PlanProgress,
   PlanRemovalReason,
   Track,
 } from '../types/index.js';
@@ -145,11 +146,7 @@ function buildEvidence(
 }
 
 type PlanBuildCallbacks = {
-  onProgress?: (event: {
-    stage: 'following' | 'tracks' | 'albums' | 'enrich' | 'done';
-    loaded?: number;
-    total?: number;
-  }) => void;
+  onProgress?: (event: PlanProgress) => void;
 };
 
 export async function buildPlan(

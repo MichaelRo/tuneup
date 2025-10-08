@@ -1,11 +1,11 @@
-import { HAS_SINGLE_LIST, curatedLists, FIRST_STEP_HASH, STEP_ROUTES } from '../app/config.js';
-import { state, isConnected, getArtistCount, getLabelCount, handleLogout } from '../app/state.js';
-import { t, formatNumber } from '../lib/i18n.js';
-import { beginAuthFlow } from '../lib/spotify.js';
-import { el } from '../lib/ui.js';
+import { HAS_SINGLE_LIST, curatedLists, FIRST_STEP_HASH, STEP_ROUTES } from '../app/config';
+import { state, isConnected, getArtistCount, getLabelCount, handleLogout } from '../app/state';
+import { t, formatNumber } from '../lib/i18n';
+import { beginAuthFlow } from '../lib/spotify';
+import { el } from '../lib/ui';
 
-import { createMetricCard } from './components.js';
-import { buildShell } from './shell.js';
+import { createMetricCard } from './components';
+import { buildShell } from './shell';
 
 function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLElement {
   const wrapper = el('div', {
@@ -18,7 +18,6 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
     text: 'Switch account',
     attrs: { 'data-action': 'connect' },
   }) as HTMLButtonElement;
-  // TODO: Do I need it back?
   reconnectBtn.addEventListener('click', event => {
     event.preventDefault();
     void beginAuthFlow();
@@ -28,7 +27,6 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
     text: 'Disconnect',
     attrs: { 'data-action': 'disconnect' },
   }) as HTMLButtonElement;
-  // TODO: Do I need it back?
   logoutBtn.addEventListener('click', event => {
     event.preventDefault();
     handleLogout();
@@ -55,7 +53,7 @@ export function renderLanding(): Node {
     );
   }
   const badges = el('div', { className: 'list-badges' });
-  [t('pill_transparent'), t('pill_secure'), t('pill_control')].forEach(text => {
+  [t('pill_transparent'), t('pill_secure'), t('pill_control')].forEach((text: string) => {
     badges.appendChild(el('span', { className: 'badge', text }));
   });
   heroStack.appendChild(badges);
@@ -94,7 +92,7 @@ export function renderLanding(): Node {
   hero.appendChild(heroActions);
 
   const heroHighlight = el('div', { className: 'hero-highlight' });
-  heroHighlight.appendChild(el('p', { text: t('dryrun_intro') }));
+  heroHighlight.appendChild(el('p', { text: t('preview_intro') }));
   const metrics = el('div', { className: 'metric-row' });
   metrics.appendChild(createMetricCard('Steps', String(STEP_ROUTES.length)));
 
@@ -127,7 +125,7 @@ export function renderLanding(): Node {
   const faqCard = el('section', { className: 'surface-card' });
   faqCard.appendChild(el('h2', { text: t('faq_title') }));
   const faqList = el('ul');
-  [t('faq_why'), t('faq_undo'), t('faq_affil')].forEach(text => {
+  [t('faq_why'), t('faq_undo'), t('faq_affil')].forEach((text: string) => {
     faqList.appendChild(el('li', { text }));
   });
   faqCard.appendChild(faqList);

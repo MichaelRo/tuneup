@@ -24,9 +24,9 @@ const httpsConfig = hasCustomCert
     }
   : false;
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   appType: 'spa',
-  base: '/tuneup/',
+  base: command === 'build' ? '/tuneup/' : '/',
   build: {
     target: 'es2020',
   },
@@ -40,4 +40,4 @@ export default defineConfig({
     https: httpsConfig || undefined,
     port: 4173,
   },
-});
+}));

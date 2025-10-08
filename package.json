@@ -21,32 +21,33 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "idb": "^7.1.1"
+    "idb": "^8.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
-    "@typescript-eslint/eslint-plugin": "^8.45.0",
-    "@typescript-eslint/parser": "^8.45.0",
-    "@vitest/coverage-istanbul": "^3.2.4",
+    "@types/node": "^20.14.13",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "concurrently": "^9.2.1",
-    "eslint": "^9.37.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint": "^9.7.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
     "eslint-plugin-import": "^2.29.1",
     "husky": "^9.1.7",
-    "jsdom": "^24.1.3",
+    "jsdom": "^24.1.1",
     "lint-staged": "^15.2.2",
-    "msw": "^2.4.3",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^8.45.0",
+    "msw": "^2.3.4",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.0.0",
     "vite": "^6.3.6",
     "vitest": "^3.2.4"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": [
+    "src/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write",
       "eslint --fix",
-      "prettier --write"
+      "npm run typecheck"
     ],
     "**/*.{json,md,css,html}": [
       "prettier --write"

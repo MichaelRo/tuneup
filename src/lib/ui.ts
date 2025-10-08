@@ -1,3 +1,5 @@
+import type { ToastType } from '../types/ui.ts';
+
 const DEFAULT_ROOT_ID = 'app-root';
 
 let toastContainer: HTMLDivElement | null = null;
@@ -71,8 +73,6 @@ function ensureToastContainer(): HTMLDivElement {
   }
   return toastContainer;
 }
-
-export type ToastType = 'info' | 'success' | 'error' | 'warning';
 
 export function showToast(message: string, type: ToastType = 'info'): void {
   const container = ensureToastContainer();

@@ -6,6 +6,7 @@ import {
   getLabelInputs,
   invalidateGeneratedPlan,
   AppState,
+  resetPlanExclusions,
   getArtistInputs,
 } from '../app/state';
 import { t, formatNumber } from '../lib/i18n';
@@ -88,8 +89,11 @@ function buildPlanArtistSection(plan: Plan): HTMLElement {
     const artistLookup = new Map(
       state.resolvedArtists.map((artist: ResolvedArtist) => [artist.id, artist] as const),
     );
+    const artistsToDisplay = plan.artistsToUnfollow.filter(
+      id => !state.planExclusions.artists.has(id),
+    );
     const grid = el('div', { className: 'plan-artist-grid' });
-    plan.artistsToUnfollow.forEach((id: string) => {
+    artistsToDisplay.forEach((id: string) => {
       const resolved = artistLookup.get(id);
       const artist: ResolvedArtist = resolved ?? { id, name: id, input: id };
       grid.appendChild(buildArtistChip(artist));
@@ -101,12 +105,11 @@ function buildPlanArtistSection(plan: Plan): HTMLElement {
 
 function buildPlanTrackSection(plan: Plan): HTMLElement {
   const section = el('section', { className: 'plan-section' });
-  section.appendChild(
-    el('h4', {
-      text: `${t('preview_summary_tracks')} · ${formatNumber(plan.tracksToRemove.length)}`,
-    }),
+  section.appendChild(el('h4', { text: t('preview_summary_tracks') }));
+  const tracksToDisplay = plan.tracksToRemove.filter(
+    track => !state.planExclusions.tracks.has(track.id),
   );
-  if (!plan.tracksToRemove.length) {
+  if (!tracksToDisplay.length) {
     section.appendChild(el('p', { className: 'plan-empty', text: t('plan_tracks_empty') }));
     return section;
   }
@@ -114,17 +117,32 @@ function buildPlanTrackSection(plan: Plan): HTMLElement {
     section.appendChild(el('p', { className: 'plan-note', text: t('plan_tracks_note') }));
   }
   const list = el('ul', { className: 'plan-item-list' });
-  plan.tracksToRemove.forEach((track: PlanTrackRemoval) => {
+  tracksToDisplay.forEach((track: PlanTrackRemoval) => {
     const item = el('li', { className: 'plan-item' });
-    item.appendChild(el('div', { className: 'plan-item-title', text: track.name ?? track.id }));
+    const checkbox = el('input', {
+      attrs: { type: 'checkbox', checked: 'true', 'data-track-id': track.id },
+    }) as HTMLInputElement;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        state.planExclusions.tracks.delete(track.id);
+      } else {
+        state.planExclusions.tracks.add(track.id);
+      }
+      renderRoute();
+    });
+    item.appendChild(checkbox);
+    const trackInfo = el('div', { className: 'plan-item-info' });
+    trackInfo.appendChild(
+      el('div', { className: 'plan-item-title', text: track.name ?? track.id }),
+    );
     const highlightSet = new Set(
       track.reasons
         .filter(reason => reason.type === 'artist')
         .map(reason => normalizeNameForCompare(reason.name ?? reason.id)),
     );
-    item.appendChild(buildReasonedArtistLine(track.artistNames, highlightSet));
+    trackInfo.appendChild(buildReasonedArtistLine(track.artistNames, highlightSet));
     if (track.albumName) {
-      item.appendChild(el('div', { className: 'plan-item-meta', text: track.albumName }));
+      trackInfo.appendChild(el('div', { className: 'plan-item-meta', text: track.albumName }));
     }
     const labelReasons = track.reasons.filter(reason => reason.type === 'label');
     if (labelReasons.length) {
@@ -137,9 +155,10 @@ function buildPlanTrackSection(plan: Plan): HTMLElement {
         ),
       );
       if (labels.length) {
-        item.appendChild(buildLabelReason(labels));
+        trackInfo.appendChild(buildLabelReason(labels));
       }
     }
+    item.appendChild(trackInfo);
     list.appendChild(item);
   });
   section.appendChild(list);
@@ -148,25 +167,39 @@ function buildPlanTrackSection(plan: Plan): HTMLElement {
 
 function buildPlanAlbumSection(plan: Plan): HTMLElement {
   const section = el('section', { className: 'plan-section' });
-  section.appendChild(
-    el('h4', {
-      text: `${t('preview_summary_albums')} · ${formatNumber(plan.albumsToRemove.length)}`,
-    }),
+  section.appendChild(el('h4', { text: t('preview_summary_albums') }));
+  const albumsToDisplay = plan.albumsToRemove.filter(
+    album => !state.planExclusions.albums.has(album.id),
   );
-  if (!plan.albumsToRemove.length) {
+  if (!albumsToDisplay.length) {
     section.appendChild(el('p', { className: 'plan-empty', text: t('plan_albums_empty') }));
     return section;
   }
   const list = el('ul', { className: 'plan-item-list' });
-  plan.albumsToRemove.forEach((album: PlanAlbumRemoval) => {
+  albumsToDisplay.forEach((album: PlanAlbumRemoval) => {
     const item = el('li', { className: 'plan-item' });
-    item.appendChild(el('div', { className: 'plan-item-title', text: album.name ?? album.id }));
+    const checkbox = el('input', {
+      attrs: { type: 'checkbox', checked: 'true', 'data-album-id': album.id },
+    }) as HTMLInputElement;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        state.planExclusions.albums.delete(album.id);
+      } else {
+        state.planExclusions.albums.add(album.id);
+      }
+      renderRoute();
+    });
+    item.appendChild(checkbox);
+    const albumInfo = el('div', { className: 'plan-item-info' });
+    albumInfo.appendChild(
+      el('div', { className: 'plan-item-title', text: album.name ?? album.id }),
+    );
     const highlightSet = new Set(
       album.reasons
         .filter(reason => reason.type === 'artist')
         .map(reason => normalizeNameForCompare(reason.name ?? reason.id)),
     );
-    item.appendChild(buildReasonedArtistLine(album.artistNames, highlightSet));
+    albumInfo.appendChild(buildReasonedArtistLine(album.artistNames, highlightSet));
     const labelReasons = album.reasons.filter(reason => reason.type === 'label');
     if (labelReasons.length) {
       const labels = Array.from(
@@ -178,9 +211,10 @@ function buildPlanAlbumSection(plan: Plan): HTMLElement {
         ),
       );
       if (labels.length) {
-        item.appendChild(buildLabelReason(labels));
+        albumInfo.appendChild(buildLabelReason(labels));
       }
     }
+    item.appendChild(albumInfo);
     list.appendChild(item);
   });
   section.appendChild(list);
@@ -203,6 +237,7 @@ function buildToggle(key: keyof AppState['options'], label: string): HTMLElement
 
 async function runPreview(button: HTMLButtonElement): Promise<void> {
   if (!state.resolvedArtists.length && state.options.includeLabelCleanup) {
+    // This toast is now defined in i18n
     showToast('Resolve artists or disable label cleanup.', 'warning');
   }
   const artistIds = state.resolvedArtists.map(a => a.id);
@@ -231,7 +266,12 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
 
   try {
     setLoading(button, true);
-    state.previewProgress = { ...initialPreviewProgress(), running: true, message: 'Preparing...' };
+    resetPlanExclusions();
+    state.previewProgress = {
+      ...initialPreviewProgress(),
+      running: true,
+      message: t('preview_preparing'),
+    };
     renderRoute();
 
     const plan = await buildPlan(
@@ -244,11 +284,11 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
       {
         onProgress: (update: PlanProgress): void => {
           const stageLabels = {
-            following: 'Fetching followed artists…',
-            tracks: 'Scanning liked tracks…',
-            albums: 'Scanning saved albums…',
-            enrich: 'Gathering album details…',
-            done: 'Preview ready.',
+            following: t('preview_fetch_following'),
+            tracks: t('preview_scan_tracks'),
+            albums: t('preview_scan_albums'),
+            enrich: t('preview_enrich_albums'),
+            done: t('preview_ready'),
           };
           state.previewProgress.message = stageLabels[update.stage];
           const ratio = update.total
@@ -276,18 +316,18 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
       state.planMeta = { before, after };
     }
     updatePreviewProgress('done', 1);
-    showToast('Preview ready.', 'success');
+    showToast(t('preview_ready'), 'success');
   } catch (err) {
     if (err instanceof SpotifyAuthError || (err && typeof err === 'object' && 'code' in err)) {
       if (err.code === 'insufficient_scope') {
-        showToast('Reconnect to Spotify so TuneUp can read your library.', 'warning');
+        showToast(t('error_insufficient_scope'), 'warning');
         void beginAuthFlow();
       } else if ('message' in err && typeof err.message === 'string') {
         showToast(err.message, 'error');
       }
     } else if (err) {
       console.error(err);
-      showToast('Unable to generate preview.', 'error');
+      showToast(t('error_preview_failed'), 'error');
     }
   } finally {
     state.previewProgress.running = false;
@@ -311,7 +351,13 @@ function createPreviewContent(): HTMLElement {
   const runBtn = el('button', { className: 'primary-btn', text: t('preview_run_btn') });
   runBtn.addEventListener('click', e => {
     e.preventDefault();
-    void runPreview(runBtn as HTMLButtonElement);
+    if (
+      !state.plan ||
+      !state.planGeneratedAt ||
+      state.planGeneratedAt < new Date(Date.now() - 1000).toISOString()
+    ) {
+      void runPreview(runBtn as HTMLButtonElement);
+    }
   });
   actions.appendChild(runBtn);
 
@@ -319,7 +365,7 @@ function createPreviewContent(): HTMLElement {
   nextBtn.addEventListener('click', event => {
     event.preventDefault();
     if (!state.plan) {
-      showToast('Generate a plan preview first.', 'warning');
+      showToast(t('generate_preview_prompt'), 'warning');
       return;
     }
     navigate('#/apply');

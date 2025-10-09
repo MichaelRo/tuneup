@@ -42,6 +42,11 @@ export type AppState = {
   plan: Plan | null;
   planGeneratedAt: string | null;
   planMeta: PlanMetaSnapshot;
+  planExclusions: {
+    artists: Set<string>;
+    tracks: Set<string>;
+    albums: Set<string>;
+  };
   options: {
     strictPrimary: boolean;
     includeAlbums: boolean;
@@ -98,6 +103,11 @@ export const state: AppState = {
   plan: null,
   planGeneratedAt: null,
   planMeta: { before: null, after: null },
+  planExclusions: {
+    artists: new Set(),
+    tracks: new Set(),
+    albums: new Set(),
+  },
   options: {
     strictPrimary: false,
     includeAlbums: true,
@@ -133,6 +143,12 @@ export function invalidateGeneratedPlan(): void {
   state.planMeta = { before: null, after: null };
   state.previewProgress = initialPreviewProgress();
   state.apply = initialApplyState();
+}
+
+export function resetPlanExclusions(): void {
+  state.planExclusions.artists.clear();
+  state.planExclusions.tracks.clear();
+  state.planExclusions.albums.clear();
 }
 
 export function getArtistCount(list: ArtistList): number {

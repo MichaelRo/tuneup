@@ -32,9 +32,13 @@ function applyNewSource(list: import('../types/index.js').ArtistList): void {
   state.previewProgress = initialPreviewProgress();
 }
 
-export function maybeAutoLoadSelectedList(): void {
-  if (state.sourceList || state.sourceLoading) return;
-  if (autoLoadedLists.has(state.selectedListId)) return;
+export function maybeAutoLoadSelectedList(options: { force?: boolean } = {}): void {
+  if (!options.force) {
+    if (state.sourceList || state.sourceLoading || autoLoadedLists.has(state.selectedListId)) {
+      return;
+    }
+  }
+
   autoLoadedLists.add(state.selectedListId);
 
   void (async () => {

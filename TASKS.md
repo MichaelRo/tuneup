@@ -24,6 +24,7 @@ _No pending tasks._
 - [ ] **Low-hanging fruit**: Improve the type-safe `localStorage` wrapper in `src/lib/state.ts` by using a schema validation library like `zod` to ensure data integrity between sessions.
 - [ ] Investigate automated accessibility snapshot testing (axe-core integration during Vitest runs).
 - [ ] Simplify the queue of matching artists and add more simpled abilities to control artists
+- [ ] Consider adding a feature of going over playlist the user has created and looking for suspicious tarcks (like we already do for saved/liked tracks)
 - [ ] Adjust artists for preview amount by the screen size and ability to show one/two lines
 - [ ] Add a separated flow for Apple Music
 - [ ] Add more integrations and capabilities - Instagram, Facebook, Tiktok, X, YouTube, etc

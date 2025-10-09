@@ -160,17 +160,24 @@ export async function buildPlan(
   const strictPrimary = Boolean(options.strictPrimary);
   const includeAlbums = Boolean(options.includeAlbums);
 
+  callbacks.onProgress?.({ stage: 'following' });
+  const following = await meFollowingArtists({
+    onProgress: count =>
+      callbacks.onProgress?.({ stage: 'following', loaded: count, total: undefined }),
+  });
+  callbacks.onProgress?.({ stage: 'following', loaded: following.length, total: following.length });
+
   if (!bannedArtistIds.size && !bannedLabels.size) {
     callbacks.onProgress?.({ stage: 'done' });
     lastContext = {
       totals: {
-        following: 0,
+        following: following.length,
         likedTracks: 0,
         savedAlbums: 0,
       },
     };
     return {
-      artistsToUnfollow: [],
+      artistsToUnfollow: following.filter(id => bannedArtistIds.has(id)),
       trackIdsToRemove: [],
       albumIdsToRemove: [],
       tracksToRemove: [],
@@ -178,13 +185,6 @@ export async function buildPlan(
       evidence: [],
     };
   }
-
-  callbacks.onProgress?.({ stage: 'following' });
-  const following = await meFollowingArtists({
-    onProgress: count =>
-      callbacks.onProgress?.({ stage: 'following', loaded: count, total: undefined }),
-  });
-  callbacks.onProgress?.({ stage: 'following', loaded: following.length, total: following.length });
 
   let likedTracks: Track[] = [];
   callbacks.onProgress?.({ stage: 'tracks', loaded: 0, total: 0 });

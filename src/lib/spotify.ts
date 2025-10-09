@@ -1,5 +1,6 @@
 import type { Album, SpotifyAuthResult, Track } from '../types/index.js';
 
+import { getCache, setCache, clearCache } from './cache.js';
 import { showToast } from './ui.js';
 
 const SPOTIFY_AUTH = 'https://accounts.spotify.com';
@@ -19,17 +20,6 @@ const SCOPES = [
   'user-library-read',
   'user-library-modify',
 ];
-
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-type CacheEntry<T> = {
-  value: T;
-  expires: number;
-};
-
-let followingCache: CacheEntry<string[]> | null = null;
-let likedTracksCache: CacheEntry<Track[]> | null = null;
-let savedAlbumsCache: CacheEntry<Album[]> | null = null;
 
 type StoredToken = {
   at: string;
@@ -458,10 +448,10 @@ type FollowingArtistsResponse = {
 export async function meFollowingArtists(
   options: { force?: boolean; onProgress?: (count: number) => void } = {},
 ): Promise<string[]> {
-  const now = Date.now();
-  if (!options.force && followingCache && followingCache.expires > now) {
-    options.onProgress?.(followingCache.value.length);
-    return [...followingCache.value];
+  const cached = await getCache<string[]>('following');
+  if (!options.force && cached) {
+    options.onProgress?.(cached.length);
+    return cached;
   }
   const artistIds: string[] = [];
   let url: string | null = '/me/following?type=artist&limit=50';
@@ -475,7 +465,7 @@ export async function meFollowingArtists(
     url = payload.artists.next;
     options.onProgress?.(artistIds.length);
   }
-  followingCache = { value: [...artistIds], expires: now + CACHE_TTL_MS };
+  await setCache('following', artistIds);
   return [...artistIds];
 }
 
@@ -497,13 +487,10 @@ export async function meLikedTracks(
     onProgress?: (stats: { loaded: number; total?: number }) => void;
   } = {},
 ): Promise<Track[]> {
-  const now = Date.now();
-  if (!options.force && likedTracksCache && likedTracksCache.expires > now) {
-    options.onProgress?.({
-      loaded: likedTracksCache.value.length,
-      total: likedTracksCache.value.length,
-    });
-    return cloneTracks(likedTracksCache.value);
+  const cached = await getCache<Track[]>('liked-tracks');
+  if (!options.force && cached) {
+    options.onProgress?.({ loaded: cached.length, total: cached.length });
+    return cloneTracks(cached);
   }
   const tracks: Track[] = [];
   let url: string | null = '/me/tracks?limit=50';
@@ -565,7 +552,7 @@ export async function meLikedTracks(
     url = payload.next;
     options.onProgress?.({ loaded: tracks.length, total: payload.total });
   }
-  likedTracksCache = { value: cloneTracks(tracks), expires: now + CACHE_TTL_MS };
+  await setCache('liked-tracks', cloneTracks(tracks));
   return cloneTracks(tracks);
 }
 export async function meSavedAlbums(
@@ -574,13 +561,10 @@ export async function meSavedAlbums(
     onProgress?: (stats: { loaded: number; total?: number }) => void;
   } = {},
 ): Promise<Album[]> {
-  const now = Date.now();
-  if (!options.force && savedAlbumsCache && savedAlbumsCache.expires > now) {
-    options.onProgress?.({
-      loaded: savedAlbumsCache.value.length,
-      total: savedAlbumsCache.value.length,
-    });
-    return cloneAlbums(savedAlbumsCache.value);
+  const cached = await getCache<Album[]>('saved-albums');
+  if (!options.force && cached) {
+    options.onProgress?.({ loaded: cached.length, total: cached.length });
+    return cloneAlbums(cached);
   }
   const albums: Album[] = [];
   let url: string | null = '/me/albums?limit=20';
@@ -630,7 +614,7 @@ export async function meSavedAlbums(
     url = payload.next;
     options.onProgress?.({ loaded: albums.length, total: payload.total });
   }
-  savedAlbumsCache = { value: cloneAlbums(albums), expires: now + CACHE_TTL_MS };
+  await setCache('saved-albums', cloneAlbums(albums));
   return cloneAlbums(albums);
 }
 
@@ -728,7 +712,5 @@ function chunk<T>(list: T[], size: number): T[][] {
 }
 
 export function invalidateSpotifyCaches(): void {
-  followingCache = null;
-  likedTracksCache = null;
-  savedAlbumsCache = null;
+  void clearCache();
 }

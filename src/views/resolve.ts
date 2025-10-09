@@ -465,7 +465,7 @@ function showArtistRosterModal(onUpdate?: () => void): void {
   const renderSummary = (): HTMLElement => {
     const summary = el('div', { className: 'roster-summary' });
     summary.appendChild(
-      createMetricCard(t('wizard_all_matched'), formatNumber(state.resolvedArtists.length)),
+      createMetricCard(t('app_all_matched'), formatNumber(state.resolvedArtists.length)),
     );
     summary.appendChild(
       createMetricCard(t('metric_pending'), formatNumber(state.pendingArtists.length)),
@@ -657,12 +657,12 @@ function createResolveContent(): HTMLElement {
   const metrics = el('div', { className: 'metric-row' });
   metrics.appendChild(
     createMetricCard(
-      t('wizard_all_matched'),
+      t('app_all_matched'),
       `${formatNumber(resolvedCount)} / ${formatNumber(total)}`,
     ),
   );
-  const pendingValue = pendingCount ? formatNumber(pendingCount) : t('wizard_all_matched');
-  const pendingLabel = pendingCount ? t('metric_pending') : t('wizard_ready');
+  const pendingValue = pendingCount ? formatNumber(pendingCount) : t('app_all_matched');
+  const pendingLabel = pendingCount ? t('metric_pending') : t('app_ready');
   metrics.appendChild(createMetricCard(pendingLabel, pendingValue));
   metrics.appendChild(createMetricCard(t('metric_skipped'), formatNumber(skippedCount)));
   container.appendChild(metrics);

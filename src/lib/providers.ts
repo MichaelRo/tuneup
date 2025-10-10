@@ -1,4 +1,5 @@
 import curatedManifest from '../data/curated-lists.json' with { type: 'json' };
+import nmgSnapshot from '../data/nmg-snapshot.json' with { type: 'json' };
 import type { ArtistList, CuratedListConfig, Item, ProviderId } from '../types/index.js';
 
 import { formatNumber } from './i18n.js';
@@ -21,17 +22,6 @@ function metaProviderOverride(source: string): ProviderId {
 export function getCuratedLists(): CuratedListConfig[] {
   return curatedListConfigs;
 }
-
-const FALLBACK_SNAPSHOT: ArtistList = {
-  provider: 'curated',
-  title: 'No Music For Genocide',
-  version: '2024-01-01',
-  sourceUrl: NMG_PROXY_URL,
-  items: [
-    { type: 'artist', name: 'Artist Example' },
-    { type: 'label', name: 'Example Records' },
-  ],
-};
 
 function cleanDisplayName(name: string): string {
   return name.replace(/\s+/g, ' ').trim();
@@ -418,7 +408,7 @@ export async function loadNmgList(): Promise<ArtistList> {
   } catch (err) {
     console.warn('Unable to load live NMG list', err);
   }
-  return FALLBACK_SNAPSHOT;
+  return nmgSnapshot as ArtistList; // Fallback to the bundled snapshot
 }
 
 export async function loadCuratedList(listId: string): Promise<ArtistList> {

@@ -14,7 +14,14 @@ import {
   type ArtistCandidate,
   type ResolveArtistsResult,
 } from '../lib/resolver.js';
-import { artistsFull, meFollowingContains } from '../lib/spotify.js';
+import {
+  artistsFull,
+  invalidateSpotifyCaches,
+  meFollowingArtists,
+  meFollowingContains,
+  meLikedTracks,
+  meSavedAlbums,
+} from '../lib/spotify.js';
 import { updateState, loadState } from '../lib/state.js';
 import { el, setLoading, showToast, showChoiceModal, showSimpleModal } from '../lib/ui.js';
 import type { ResolvedArtist } from '../types/index.js';
@@ -28,6 +35,8 @@ import {
 } from './components.js';
 import { buildShell } from './shell.js';
 import { maybeAutoLoadSelectedList, renderSourceStep } from './source.js';
+
+let prefetchedLibrary = false;
 
 let autoResolveInFlight = false;
 let resolvePreviewSort: 'recent' | 'name' | 'followers' = 'followers';
@@ -90,7 +99,7 @@ async function hydrateResolvedFromCache(): Promise<void> {
 
     if (resolvedFromCache.length > 0 || skippedFromCache.length > 0) {
       invalidateGeneratedPlan();
-      void enrichAndRenderArtists(resolvedFromCache);
+      void enrichAndRenderArtists(state.resolvedArtists);
       renderRoute();
     }
   } catch (err) {
@@ -219,6 +228,14 @@ async function enrichAndRenderArtists(artists: ResolvedArtist[]): Promise<void> 
 
 async function runAutoResolve(options: { force?: boolean } = {}): Promise<void> {
   if (autoResolveInFlight) return;
+  if (!state.followingArtistIds.length && isConnected()) {
+    // Ensure we have the following list before running the resolver, which needs it for context.
+    state.followingArtistIds = await meFollowingArtists();
+  }
+  if (!state.sourceList) {
+    await maybeAutoLoadSelectedList({ force: true });
+  }
+
   if (!state.sourceList || !isConnected() || !state.pendingArtists.length) return;
   if (!options.force && state.autoResolveAttempted) return;
 
@@ -271,12 +288,18 @@ async function handleAmbiguity(
   input: string,
   candidates: ArtistCandidate[],
 ): Promise<{ choice: ArtistCandidate | null; skipped?: boolean; cancel?: boolean }> {
-  const choices = candidates.slice(0, 5).map(candidate => ({
-    label: candidate.name,
-    subtitle: `${formatNumber(candidate.followers ?? 0)} ${t('resolve_followers')}`,
-    value: candidate,
-  }));
-
+  const choices = candidates.slice(0, 5).map(candidate => {
+    const artistInfo = buildArtistInfo(
+      { ...candidate, name: candidate.name ?? 'Unknown' },
+      { compact: true, showSourceDiff: false, showFollow: false },
+    );
+    const followers = el('span', {
+      className: 'modal-choice-sub',
+      text: `${formatNumber(candidate.followers ?? 0)} ${t('resolve_followers')}`,
+    });
+    const label = el('div', { children: [artistInfo, followers] });
+    return { label, value: candidate };
+  });
   let skipped = false;
   const selection = await showChoiceModal({
     title: input,
@@ -354,7 +377,7 @@ function buildResolvedPreviewSort(): HTMLElement {
     return button;
   };
   control.appendChild(buildOption('followers', t('resolve_sort_popularity')));
-  control.appendChild(buildOption('name', t('resolve_sort_recent')));
+  control.appendChild(buildOption('name', t('resolve_sort_name')));
   control.appendChild(buildOption('recent', t('resolve_sort_recent')));
   return control;
 }
@@ -458,7 +481,7 @@ function showArtistRosterModal(onUpdate?: () => void): void {
       return button;
     };
     control.appendChild(buildOption('followers', t('resolve_sort_popularity')));
-    control.appendChild(buildOption('name', t('resolve_sort_recent')));
+    control.appendChild(buildOption('name', t('resolve_sort_name')));
     control.appendChild(buildOption('recent', t('resolve_sort_recent')));
     return control;
   }
@@ -550,7 +573,7 @@ function showArtistRosterModal(onUpdate?: () => void): void {
       const actions = el('div', { className: 'roster-row-actions' });
       const reviewBtn = el('button', {
         className: 'primary-btn',
-        text: t('wizard_review'),
+        text: t('app_review'),
       }) as HTMLButtonElement;
       reviewBtn.addEventListener('click', (): void => {
         void reviewSingleArtist(name, reviewBtn, () => rerender());
@@ -610,7 +633,7 @@ function showArtistRosterModal(onUpdate?: () => void): void {
       const actions = el('div', { className: 'roster-row-actions' });
       const retryBtn = el('button', {
         className: 'secondary-btn',
-        text: t('wizard_requeue'),
+        text: t('app_requeue'),
       }) as HTMLButtonElement;
       retryBtn.addEventListener('click', async () => {
         retryBtn.disabled = true;
@@ -708,18 +731,20 @@ function createResolveContent(): HTMLElement {
 
   const actions = el('div', { className: 'resolve-actions' });
   if (pendingCount) {
-    const resolveBtnLabel = state.autoResolveAttempted
-      ? t('resolve_review_btn')
-      : t('resolve_start_btn');
-    const resolveBtnClass = state.autoResolveAttempted ? 'secondary-btn' : 'primary-btn';
+    const resolveBtnLabel = t('resolve_start_btn');
+    const resolveBtnClass = 'primary-btn';
     const resolveBtn = el('button', { className: resolveBtnClass, text: resolveBtnLabel });
-    if (state.resolutionRunning) {
+    if (state.resolutionRunning || state.sourceLoading || !state.sourceList) {
       setLoading(resolveBtn, true);
     }
     resolveBtn.addEventListener('click', async event => {
       event.preventDefault();
       if (!isConnected()) {
         showToast(t('resolve_connect_first'), 'warning');
+        return;
+      }
+      if (state.autoResolveAttempted) {
+        showArtistRosterModal(() => renderRoute());
         return;
       }
       try {
@@ -780,6 +805,17 @@ function createResolveContent(): HTMLElement {
       }
     });
     actions.appendChild(resolveBtn);
+
+    if (state.autoResolveAttempted) {
+      const reviewBtn = el('button', {
+        className: 'secondary-btn',
+        text: t('resolve_review_btn'),
+      });
+      reviewBtn.addEventListener('click', () => {
+        showArtistRosterModal(() => renderRoute());
+      });
+      actions.appendChild(reviewBtn);
+    }
   }
 
   const nextBtn = el('button', {
@@ -800,22 +836,46 @@ function createResolveContent(): HTMLElement {
   }
   actions.appendChild(nextBtn);
 
-  const backBtn = el('button', { className: 'secondary-btn', text: t('resolve_back_btn') });
-  backBtn.addEventListener('click', event => {
-    event.preventDefault();
-    navigate('#/app');
-  });
-  actions.appendChild(backBtn);
+  if (HAS_SINGLE_LIST) {
+    const reloadBtn = el('button', { className: 'secondary-btn', text: t('resolve_reload_btn') });
+    reloadBtn.addEventListener('click', () => {
+      invalidateSpotifyCaches();
+      maybeAutoLoadSelectedList({ force: true });
+    });
+    actions.appendChild(reloadBtn);
+  } else {
+    const backBtn = el('button', { className: 'secondary-btn', text: t('resolve_back_btn') });
+    backBtn.addEventListener('click', event => {
+      event.preventDefault();
+      navigate('#/app');
+    });
+    actions.appendChild(backBtn);
+  }
 
   container.appendChild(actions);
 
   return container;
 }
 
+export function resetPrefetch(): void {
+  prefetchedLibrary = false;
+}
+
+export function runPrefetch(): void {
+  // Pre-fetch user's library data in the background while they are on the resolve step.
+  // This makes the "Preview" step feel much faster.
+  if (isConnected() && !prefetchedLibrary) {
+    prefetchedLibrary = true;
+    void meFollowingArtists();
+    void meLikedTracks();
+    void meSavedAlbums();
+  }
+}
+
 export function renderResolveStep(): Node {
   if (!state.sourceList) {
     if (HAS_SINGLE_LIST) {
-      maybeAutoLoadSelectedList();
+      void maybeAutoLoadSelectedList({ force: true }).then(renderRoute);
       return buildShell(createLoadingCard(t('source_loading')), {
         activeHash: '#/resolve',
         title: t('stepper_title'),
@@ -827,13 +887,14 @@ export function renderResolveStep(): Node {
   }
 
   void hydrateResolvedFromCache();
+  runPrefetch();
 
   // Use IntersectionObserver to trigger auto-resolve only when the element is visible.
   // This is more reliable on mobile where page visibility can be inconsistent.
   const observer = new IntersectionObserver(
     (entries, obs) => {
       if (entries[0]?.isIntersecting) {
-        void runAutoResolve({ force: true });
+        void runAutoResolve();
         obs.disconnect(); // Run only once
       }
     },

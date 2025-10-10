@@ -4,7 +4,7 @@ _Last updated: 2025-10-06 · Owner: Core Eng + Product_
 
 ## Purpose & Goals
 
-- Strengthen user trust and comprehension of the Spotify cleanup wizard while preserving the browser-only promise.
+- Strengthen user trust and comprehension of the Spotify cleanup tool while preserving the browser-only promise.
 - Reduce friction in artist resolution and plan review, especially for large libraries and multilingual audiences.
 - Increase completion rate from dry-run to apply by providing stronger safety nets and transparency.
 
@@ -37,7 +37,7 @@ _Last updated: 2025-10-06 · Owner: Core Eng + Product_
 
 1. **Explore & Connect**
    - User lands, reviews mission + trust hub, toggles locale, initiates Spotify connect.
-   - Success = scopes understood, optional skip to wizard allowed.
+   - Success = scopes understood, optional skip to tool allowed.
 2. **Source & Validate List**
    - Select curated roster or import custom data; see counts, version, provenance, validation warnings.
    - Success = list loaded with deduplication, validation status shown, CTA to resolve enabled.
@@ -59,7 +59,7 @@ _Last updated: 2025-10-06 · Owner: Core Eng + Product_
 
 - Add consent card with explicit list of Spotify permissions, storage scope, and “How to revoke” link.
 - Display latest petition metadata (version, last updated) with CTA to view changelog.
-- Provide skip-to-wizard link for users already authenticated.
+- Provide skip-to-tool link for users already authenticated.
 
 ### Source
 

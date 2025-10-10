@@ -24,18 +24,22 @@ export type ResolvedArtist = {
   isFollowing?: boolean;
 };
 
+/** A simplified artist object, as returned by some Spotify API endpoints. */
 export type TrackArtist = {
   id: string;
   name?: string;
 };
 
+/** A simplified album object, as returned by some Spotify API endpoints. */
 export type TrackAlbum = {
   id: string;
   name?: string;
   label?: string;
   release_date?: string;
+  imageUrl?: string;
 };
 
+/** A full track object from the Spotify API. */
 export type Track = {
   id: string;
   name?: string;
@@ -43,12 +47,42 @@ export type Track = {
   album: TrackAlbum;
 };
 
+/** A full album object from the Spotify API. */
 export type Album = {
   id: string;
   name?: string;
   artists: TrackArtist[];
   label?: string;
   release_date?: string;
+  imageUrl?: string;
+};
+
+/** A track object as it appears in a paginated API response. */
+export type SpotifyPaginatedTrack = {
+  track: {
+    id: string;
+    name?: string;
+    artists?: Array<{ id: string | null | undefined; name?: string }>;
+    album?: {
+      id: string | null | undefined;
+      name?: string;
+      label?: string;
+      release_date?: string;
+      images?: Array<{ url: string }>;
+    };
+  };
+};
+
+/** An album object as it appears in a paginated API response. */
+export type SpotifyPaginatedAlbum = {
+  album: {
+    id: string | null | undefined;
+    name?: string;
+    artists?: Array<{ id: string | null | undefined; name?: string }>;
+    label?: string;
+    release_date?: string;
+    images?: Array<{ url: string }>;
+  };
 };
 
 export type PlanEvidence = {
@@ -68,6 +102,7 @@ export type PlanTrackRemoval = {
   name?: string;
   artistNames: string[];
   albumName?: string;
+  album?: { imageUrl?: string };
   reasons: PlanRemovalReason[];
 };
 
@@ -75,6 +110,7 @@ export type PlanAlbumRemoval = {
   id: string;
   name?: string;
   artistNames: string[];
+  imageUrl?: string;
   reasons: PlanRemovalReason[];
 };
 

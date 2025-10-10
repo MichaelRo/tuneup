@@ -15,8 +15,7 @@ import { t, formatNumber } from '../lib/i18n';
 import { loadCuratedList } from '../lib/providers';
 import { el, showToast, spinner } from '../lib/ui';
 
-import { createMetricCard } from './components';
-import { renderResolveStep } from './resolve';
+import { createMetricCard, createLoadingCard } from './components';
 import { buildShell } from './shell';
 
 function applyNewSource(list: import('../types/index.js').ArtistList): void {
@@ -32,36 +31,33 @@ function applyNewSource(list: import('../types/index.js').ArtistList): void {
   state.previewProgress = initialPreviewProgress();
 }
 
-export function maybeAutoLoadSelectedList(options: { force?: boolean } = {}): void {
+export async function maybeAutoLoadSelectedList(options: { force?: boolean } = {}): Promise<void> {
   if (!options.force) {
     if (state.sourceList || state.sourceLoading || autoLoadedLists.has(state.selectedListId)) {
-      return;
+      return Promise.resolve();
     }
   }
 
   autoLoadedLists.add(state.selectedListId);
 
-  void (async () => {
-    try {
-      state.sourceLoading = true;
-      renderRoute();
-      const list = await loadCuratedList(state.selectedListId);
-      applyNewSource(list);
-      showToast(
-        t('source_loaded_counts', {
-          artists: formatNumber(getArtistCount(list)),
-          labels: formatNumber(getLabelCount(list)),
-        }),
-        'success',
-      );
-    } catch (err) {
-      console.warn('Auto-load list failed', err);
-      showToast(t('error_load_list'), 'warning');
-    } finally {
-      state.sourceLoading = false;
-      renderRoute();
-    }
-  })();
+  try {
+    state.sourceLoading = true;
+    const list = await loadCuratedList(state.selectedListId);
+    applyNewSource(list);
+    showToast(
+      t('source_loaded_counts', {
+        artists: formatNumber(getArtistCount(list)),
+        labels: formatNumber(getLabelCount(list)),
+      }),
+      'success',
+    );
+  } catch (err) {
+    console.warn('Auto-load list failed', err);
+    showToast(t('error_load_list'), 'warning');
+  } finally {
+    state.sourceLoading = false;
+    renderRoute();
+  }
 }
 
 function renderSourceSummary(list: import('../types/index.js').ArtistList): HTMLElement {
@@ -148,7 +144,7 @@ export function createSourceContent(): HTMLElement {
       showToast(t('resolve_connect_first'), 'warning');
       return;
     }
-    maybeAutoLoadSelectedList();
+    void maybeAutoLoadSelectedList();
   });
   actions.appendChild(loadBtn);
 
@@ -182,9 +178,12 @@ export function createSourceContent(): HTMLElement {
 export function renderSourceStep(): Node {
   if (HAS_SINGLE_LIST) {
     navigate(FIRST_STEP_HASH);
-    return renderResolveStep();
+    return buildShell(createLoadingCard(t('source_loading')), {
+      activeHash: '#/resolve',
+      title: t('stepper_title'),
+    });
   }
   const content = createSourceContent();
-  maybeAutoLoadSelectedList();
+  void maybeAutoLoadSelectedList();
   return buildShell(content, { activeHash: '#/app', title: t('stepper_title') });
 }

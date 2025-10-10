@@ -109,7 +109,7 @@ export function setLoading(target: HTMLButtonElement | null, isLoading: boolean)
 }
 
 export type ModalChoice<T> = {
-  label: string;
+  label: string | Node;
   value: T;
   subtitle?: string;
 };
@@ -146,17 +146,21 @@ export function showChoiceModal<T>({
     const choiceList = el('div', { className: 'modal-choice-list' });
     choices.forEach((choice, index) => {
       const button = el('button', {
-        className: 'btn modal-choice',
-        children: [
+        className: 'modal-choice',
+      });
+      if (typeof choice.label === 'string') {
+        button.appendChild(
           el('span', {
             className: 'modal-choice-label',
             text: choice.label || `Option ${index + 1}`,
           }),
-          ...(choice.subtitle
-            ? [el('span', { className: 'modal-choice-sub', text: choice.subtitle })]
-            : []),
-        ],
-      });
+        );
+      } else {
+        button.appendChild(choice.label);
+      }
+      if (choice.subtitle) {
+        button.appendChild(el('span', { className: 'modal-choice-sub', text: choice.subtitle }));
+      }
       button.addEventListener('click', () => {
         cleanup();
         resolve(choice.value);

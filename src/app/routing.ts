@@ -8,7 +8,7 @@ import { renderReportStep } from '../views/report';
 import { renderResolveStep } from '../views/resolve';
 import { renderSourceStep } from '../views/source';
 
-import { ALL_ROUTES, type WizardRoute, ROUTE_DEFAULT } from './config';
+import { ALL_ROUTES, type AppRoute, ROUTE_DEFAULT } from './config';
 import { handleLogout, isConnected } from './state';
 
 const rootElement = document.getElementById('app-root');
@@ -17,7 +17,7 @@ if (!(rootElement instanceof HTMLElement)) {
 }
 const root: HTMLElement = rootElement;
 
-const routeHandlers = new Map<WizardRoute, () => string | Node>();
+const routeHandlers = new Map<AppRoute, () => string | Node>();
 
 export function initRouting(): void {
   routeHandlers.set(ROUTE_DEFAULT, renderLanding);
@@ -28,13 +28,13 @@ export function initRouting(): void {
   routeHandlers.set('#/report', renderReportStep);
 }
 
-function normalizeHash(raw: string): WizardRoute {
+function normalizeHash(raw: string): AppRoute {
   if (!raw || raw === '#') return ROUTE_DEFAULT;
-  const candidate = raw as WizardRoute;
+  const candidate = raw as AppRoute;
   return ALL_ROUTES.includes(candidate) ? candidate : ROUTE_DEFAULT;
 }
 
-export function navigate(hash: WizardRoute): void {
+export function navigate(hash: AppRoute): void {
   if (location.hash === hash) {
     renderRoute();
   } else {

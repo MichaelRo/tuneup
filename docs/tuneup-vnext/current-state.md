@@ -4,7 +4,7 @@ _Last updated: 2025-10-06_
 
 ## Product Snapshot
 
-- Mission: Help listeners align Spotify libraries with the **No Music For Genocide** petition through a transparent, user-controlled cleanup wizard ([PROJECT_NOTES.md](../../PROJECT_NOTES.md)).
+- Mission: Help listeners align Spotify libraries with the **No Music For Genocide** petition through a transparent, user-controlled cleanup app ([PROJECT_NOTES.md](../../PROJECT_NOTES.md)).
 - Platform: Browser-only single-page app built with Vite + strict TypeScript; no backend services ([PROJECT_NOTES.md](../../PROJECT_NOTES.md), [README.md](../../README.md)).
 - Auth: Spotify PKCE OAuth handled entirely client-side; tokens and PKCE verifier/state stored in `localStorage` / `sessionStorage` with refresh handling ([src/lib/spotify.ts](../../src/lib/spotify.ts)).
 - Persistence: Minimal audit + resolver cache persisted via `localStorage` ([src/lib/state.ts](../../src/lib/state.ts)).
@@ -15,11 +15,11 @@ _Last updated: 2025-10-06_
 ### Landing & Connection
 
 - Landing hero promotes transparency and offers connect CTA with GitHub link ([src/main.ts](../../src/main.ts)).
-- Login state toggles between connect CTA and wizard entry; auth status shown in header and sidebar across wizard steps ([src/main.ts](../../src/main.ts)).
+- Login state toggles between connect CTA and tool entry; auth status shown in header and sidebar across app steps ([src/main.ts](../../src/main.ts)).
 
 ### Source (`#/app`)
 
-- If only one curated list exists, the wizard auto-skips the source step ([src/main.ts](../../src/main.ts)).
+- If only one curated list exists, the tool auto-skips the source step ([src/main.ts](../../src/main.ts)).
 - Supports curated list picker plus custom list ingestion via paste, upload, or URL cards with progress messaging and deduplication ([src/lib/providers.ts](../../src/lib/providers.ts), [src/main.ts](../../src/main.ts)).
 - Loads list metadata and displays artist and label counts with plan-ready summary cards ([src/main.ts](../../src/main.ts)).
 
@@ -49,7 +49,7 @@ _Last updated: 2025-10-06_
 
 ## UX & Interaction Patterns
 
-- Shell layout with sidebar stepper plus bottom navigation for wizard steps ([src/main.ts](../../src/main.ts)).
+- Shell layout with sidebar stepper plus bottom navigation for app steps (src/main.ts).
 - Progress patterns: staged preview progress, per-phase apply progress, and badges for phases and labels ([src/main.ts](../../src/main.ts), [src/lib/i18n.ts](../../src/lib/i18n.ts)).
 - Decision modals (resolve ambiguity) and toast system for lightweight feedback ([src/lib/ui.ts](../../src/lib/ui.ts)).
 - Label cleanup visualized via pill and badge styles consistent with artist reasons ([PROJECT_NOTES.md](../../PROJECT_NOTES.md)).

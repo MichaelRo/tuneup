@@ -1,4 +1,11 @@
-import type { Album, SpotifyAuthResult, Track } from '../types/index.js';
+import type {
+  Album,
+  SpotifyAuthResult,
+  SpotifyPaginatedAlbum,
+  SpotifyPaginatedTrack,
+  Track,
+  TrackArtist,
+} from '../types/index.js';
 
 import { getCache, setCache, clearCache } from './cache.js';
 import { showToast } from './ui.js';
@@ -13,6 +20,7 @@ const EXPIRY_SKEW_MS = 60 * 1000;
 const MUTATION_MAX_RETRY = 5;
 const MUTATION_BACKOFF_BASE_MS = 1000;
 const MUTATION_BATCH_LIMIT = 50;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const SCOPES = [
   'user-follow-modify',
@@ -20,6 +28,11 @@ const SCOPES = [
   'user-library-read',
   'user-library-modify',
 ];
+
+type CacheEntry<T> = {
+  value: T;
+  expires: number;
+};
 
 type StoredToken = {
   at: string;
@@ -448,10 +461,11 @@ type FollowingArtistsResponse = {
 export async function meFollowingArtists(
   options: { force?: boolean; onProgress?: (count: number) => void } = {},
 ): Promise<string[]> {
-  const cached = await getCache<string[]>('following');
-  if (!options.force && cached) {
-    options.onProgress?.(cached.length);
-    return cached;
+  const now = Date.now();
+  const cached = await getCache<CacheEntry<string[]>>('me:following');
+  if (!options.force && cached && cached.expires > now) {
+    options.onProgress?.(cached.value.length);
+    return [...cached.value];
   }
   const artistIds: string[] = [];
   let url: string | null = '/me/following?type=artist&limit=50';
@@ -465,7 +479,7 @@ export async function meFollowingArtists(
     url = payload.artists.next;
     options.onProgress?.(artistIds.length);
   }
-  await setCache('following', artistIds);
+  await setCache('me:following', { value: [...artistIds], expires: now + CACHE_TTL_MS });
   return [...artistIds];
 }
 
@@ -487,55 +501,24 @@ export async function meLikedTracks(
     onProgress?: (stats: { loaded: number; total?: number }) => void;
   } = {},
 ): Promise<Track[]> {
-  const cached = await getCache<Track[]>('liked-tracks');
-  if (!options.force && cached) {
-    options.onProgress?.({ loaded: cached.length, total: cached.length });
-    return cloneTracks(cached);
+  const now = Date.now();
+  const cached = await getCache<CacheEntry<Track[]>>('me:liked-tracks');
+  if (!options.force && cached && cached.expires > now) {
+    options.onProgress?.({ loaded: cached.value.length, total: cached.value.length });
+    return cloneTracks(cached.value);
   }
   const tracks: Track[] = [];
   let url: string | null = '/me/tracks?limit=50';
   while (url) {
-    const payload: {
-      items: Array<{
-        track: {
-          id: string;
-          name?: string;
-          artists?: Array<{ id: string | null | undefined; name?: string }>;
-          album?: {
-            id: string | null | undefined;
-            name?: string;
-            label?: string;
-            release_date?: string;
-          };
-        };
-      }>;
-      next: string | null;
-      total?: number;
-    } = await apiGET<{
-      items: Array<{
-        track: {
-          id: string;
-          name?: string;
-          artists?: Array<{ id: string | null | undefined }>;
-          album?: {
-            id: string | null | undefined;
-            name?: string;
-            label?: string;
-            release_date?: string;
-          };
-        };
-      }>;
-      next: string | null;
-    }>(url);
+    const payload: { items: SpotifyPaginatedTrack[]; next: string | null; total?: number } =
+      await apiGET(url);
 
     for (const item of payload.items) {
       const track = item.track;
       if (!track?.id) continue;
-      const artistRefs = (track.artists ?? [])
-        .map((artist): { id: string; name?: string } | null =>
-          artist?.id ? { id: artist.id, name: artist.name ?? undefined } : null,
-        )
-        .filter((artist): artist is { id: string; name?: string } => Boolean(artist));
+      const artistRefs = (track.artists ?? []).filter(
+        (artist): artist is TrackArtist => !!artist?.id,
+      );
       const album = track.album;
       tracks.push({
         id: track.id,
@@ -546,13 +529,14 @@ export async function meLikedTracks(
           name: album?.name,
           label: album?.label,
           release_date: album?.release_date,
+          imageUrl: album?.images?.[album.images.length - 1]?.url,
         },
       });
     }
     url = payload.next;
     options.onProgress?.({ loaded: tracks.length, total: payload.total });
   }
-  await setCache('liked-tracks', cloneTracks(tracks));
+  await setCache('me:liked-tracks', { value: cloneTracks(tracks), expires: now + CACHE_TTL_MS });
   return cloneTracks(tracks);
 }
 export async function meSavedAlbums(
@@ -561,77 +545,86 @@ export async function meSavedAlbums(
     onProgress?: (stats: { loaded: number; total?: number }) => void;
   } = {},
 ): Promise<Album[]> {
-  const cached = await getCache<Album[]>('saved-albums');
-  if (!options.force && cached) {
-    options.onProgress?.({ loaded: cached.length, total: cached.length });
-    return cloneAlbums(cached);
+  const now = Date.now();
+  const cached = await getCache<CacheEntry<Album[]>>('me:saved-albums');
+  if (!options.force && cached && cached.expires > now) {
+    options.onProgress?.({ loaded: cached.value.length, total: cached.value.length });
+    return cloneAlbums(cached.value);
   }
   const albums: Album[] = [];
   let url: string | null = '/me/albums?limit=20';
   while (url) {
-    const payload: {
-      items: Array<{
-        album: {
-          id: string | null | undefined;
-          name?: string;
-          artists?: Array<{ id: string | null | undefined; name?: string }>;
-          label?: string;
-          release_date?: string;
-        };
-      }>;
-      next: string | null;
-      total?: number;
-    } = await apiGET<{
-      items: Array<{
-        album: {
-          id: string | null | undefined;
-          name?: string;
-          artists?: Array<{ id: string | null | undefined; name?: string }>;
-          label?: string;
-          release_date?: string;
-        };
-      }>;
-      next: string | null;
-      total?: number;
-    }>(url);
+    const payload: { items: SpotifyPaginatedAlbum[]; next: string | null; total?: number } =
+      await apiGET(url);
 
     for (const entry of payload.items) {
       const album = entry.album;
       if (!album?.id) continue;
-      const artistRefs = (album.artists ?? [])
-        .map((artist): { id: string; name?: string } | null =>
-          artist?.id ? { id: artist.id, name: artist.name ?? undefined } : null,
-        )
-        .filter((artist): artist is { id: string; name?: string } => Boolean(artist));
+      const artistRefs = (album.artists ?? []).filter(
+        (artist): artist is TrackArtist => !!artist?.id,
+      );
       albums.push({
         id: album.id,
         name: album.name,
         artists: artistRefs,
         label: album.label,
         release_date: album.release_date,
+        imageUrl: album.images?.[album.images.length - 1]?.url,
       });
     }
     url = payload.next;
     options.onProgress?.({ loaded: albums.length, total: payload.total });
   }
-  await setCache('saved-albums', cloneAlbums(albums));
+  await setCache('me:saved-albums', { value: cloneAlbums(albums), expires: now + CACHE_TTL_MS });
   return cloneAlbums(albums);
 }
 
 export async function albumsFull(
   ids: string[],
-): Promise<Array<{ id: string; name?: string; label?: string; release_date?: string }>> {
-  if (!ids.length) return [];
-  const result: Array<{ id: string; name?: string; label?: string; release_date?: string }> = [];
-  for (let i = 0; i < ids.length; i += 20) {
-    const slice = ids.slice(i, i + 20);
+  options: {
+    force?: boolean;
+  } = {},
+): Promise<
+  Array<{
+    id: string;
+    name?: string;
+    label?: string;
+    release_date?: string;
+    images?: Array<{ url: string }>;
+  }>
+> {
+  const now = Date.now();
+  const result: Album[] = [];
+  const idsToFetch: string[] = [];
+
+  for (const id of ids) {
+    const cached = await getCache<CacheEntry<Album>>(`album:${id}`);
+    if (!options.force && cached && cached.expires > now) {
+      result.push(cached.value);
+    } else {
+      idsToFetch.push(id);
+    }
+  }
+
+  if (!idsToFetch.length) return result;
+
+  for (let i = 0; i < idsToFetch.length; i += 20) {
+    const slice = idsToFetch.slice(i, i + 20);
     const params = new URLSearchParams({ ids: slice.join(',') });
     const payload = await apiGET<{
-      albums: Array<{ id: string; name?: string; label?: string; release_date?: string }>;
+      albums: Array<{
+        id: string;
+        name?: string;
+        label?: string;
+        release_date?: string;
+        images?: Array<{ url: string }>;
+        artists: TrackArtist[];
+      }>;
     }>(`/albums?${params.toString()}`);
     payload.albums.forEach(album => {
       if (album?.id) {
         result.push(album);
+        void setCache(`album:${album.id}`, { value: album, expires: now + CACHE_TTL_MS });
       }
     });
   }
@@ -640,6 +633,9 @@ export async function albumsFull(
 
 export async function artistsFull(
   ids: string[],
+  options: {
+    force?: boolean;
+  } = {},
 ): Promise<
   Array<{ id: string; name: string; followers: { total: number }; images: Array<{ url: string }> }>
 > {
@@ -650,8 +646,22 @@ export async function artistsFull(
     followers: { total: number };
     images: Array<{ url: string }>;
   }> = [];
-  for (let i = 0; i < ids.length; i += 50) {
-    const slice = ids.slice(i, i + 50);
+  const idsToFetch: string[] = [];
+  const now = Date.now();
+
+  for (const id of ids) {
+    const cached = await getCache<CacheEntry<(typeof result)[0]>>(`artist:${id}`);
+    if (!options.force && cached && cached.expires > now) {
+      result.push(cached.value);
+    } else {
+      idsToFetch.push(id);
+    }
+  }
+
+  if (!idsToFetch.length) return result;
+
+  for (let i = 0; i < idsToFetch.length; i += 50) {
+    const slice = idsToFetch.slice(i, i + 50);
     const params = new URLSearchParams({ ids: slice.join(',') });
     const payload = await apiGET<{
       artists: Array<{
@@ -661,7 +671,10 @@ export async function artistsFull(
         images: Array<{ url: string }>;
       }>;
     }>(`/artists?${params.toString()}`);
-    result.push(...payload.artists);
+    payload.artists.forEach(artist => {
+      result.push(artist);
+      void setCache(`artist:${artist.id}`, { value: artist, expires: now + CACHE_TTL_MS });
+    });
   }
   return result;
 }

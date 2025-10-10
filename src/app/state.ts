@@ -1,6 +1,8 @@
 import { clearToken, invalidateSpotifyCaches } from '../lib/spotify.js';
+import { updateState } from '../lib/state.js';
 import { showToast } from '../lib/ui.js';
 import type { ArtistList, Item, Plan, PlanContext, ResolvedArtist } from '../types/index.js';
+import { resetPrefetch } from '../views/resolve.js';
 
 import { curatedLists } from './config.js';
 import { renderRoute } from './routing.js';
@@ -132,8 +134,6 @@ export function setConnected(value: boolean): void {
 
 export function uniqueNames(values: string[]): string[] {
   const cleaned = values.map(v => v?.trim()).filter(Boolean) as string[];
-  // Using a Set is a highly efficient way to get unique values.
-  // The spread syntax `...` converts the Set back into an array.
   return [...new Set(cleaned)];
 }
 
@@ -188,6 +188,12 @@ export function handleLogout(): void {
   setConnected(false);
   state.followingArtistIds = [];
   invalidateGeneratedPlan();
+  resetPrefetch();
   showToast('Disconnected from Spotify.', 'info');
-  renderRoute();
+  void updateState(draft => {
+    draft.nameToId = {};
+    draft.ops = {};
+  }).then(() => {
+    renderRoute();
+  });
 }

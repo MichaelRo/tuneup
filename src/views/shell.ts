@@ -1,4 +1,4 @@
-import { ROUTE_DEFAULT, STEP_ROUTES, type WizardRoute } from '../app/config';
+import { ROUTE_DEFAULT, STEP_ROUTES, type AppRoute } from '../app/config';
 import { navigate } from '../app/routing';
 import { handleLogout, isConnected } from '../app/state';
 import { getLang, bindLanguageToggles, t } from '../lib/i18n';
@@ -57,7 +57,12 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
 function buildShellHeader(title: string, subtitle?: string): HTMLElement {
   const header = el('header', { className: 'shell-header' });
   const stack = el('div', { className: 'header-stack' });
-  stack.appendChild(el('h1', { text: title }));
+  const logoLink = el('a', {
+    className: 'header-logo-link',
+    attrs: { href: '#/' },
+  });
+  logoLink.appendChild(el('h1', { text: title }));
+  stack.appendChild(logoLink);
   if (subtitle) {
     stack.appendChild(el('p', { text: subtitle }));
   }
@@ -73,15 +78,8 @@ function buildShellHeader(title: string, subtitle?: string): HTMLElement {
   return header;
 }
 
-function buildSidebar(activeHash: WizardRoute): HTMLElement {
+function buildSidebar(activeHash: AppRoute): HTMLElement {
   const sidebar = el('aside', { className: 'shell-sidebar' });
-  const logoStack = el('a', {
-    className: 'header-stack',
-    attrs: { href: '#/' },
-  });
-  logoStack.appendChild(el('h2', { text: t('stepper_title') }));
-  logoStack.appendChild(el('p', { text: t('stepper_intro') }));
-  sidebar.appendChild(logoStack);
 
   const stepper = el('nav', { className: 'stepper' });
   STEP_ROUTES.forEach(({ hash, key }, index: number) => {
@@ -99,7 +97,7 @@ function buildSidebar(activeHash: WizardRoute): HTMLElement {
   return sidebar;
 }
 
-function buildBottomNav(activeHash: WizardRoute): HTMLElement {
+function buildBottomNav(activeHash: AppRoute): HTMLElement {
   const nav = el('nav', { className: 'bottom-nav' });
   STEP_ROUTES.forEach(({ hash }) => {
     const button = el('button', { attrs: { type: 'button', 'data-nav': hash } });
@@ -112,7 +110,7 @@ function buildBottomNav(activeHash: WizardRoute): HTMLElement {
 
 export function buildShell(
   mainContent: HTMLElement,
-  options: { activeHash?: WizardRoute; title: string; subtitle?: string },
+  options: { activeHash?: AppRoute; title: string; subtitle?: string },
 ): HTMLElement {
   const shell = el('div', { className: 'app-shell' });
   if (options.activeHash && options.activeHash !== ROUTE_DEFAULT) {

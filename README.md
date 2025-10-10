@@ -1,9 +1,9 @@
-# TuneUp (SPA wizard)
+# TuneUp (SPA Tool)
 
 ![Build Status](https://github.com/your-org/tuneup/actions/workflows/ci.yml/badge.svg)
 ![MIT License](https://img.shields.io/badge/license-MIT-green.svg)
 
-# TuneUp (SPA wizard)
+# TuneUp (SPA Tool)
 
 > For deeper architecture, onboarding, and glossary, see [`PROJECT_NOTES.md`](./PROJECT_NOTES.md).
 
@@ -22,7 +22,7 @@ TuneUp helps you audit and clean your Spotify library in response to the public 
 
 - **Zero backend**: static site powered by Vite + TypeScript.
 - **PKCE OAuth**: refresh-aware token handling with rate-limit backoff.
-- **Wizard workflow**: source → resolve → dry-run → apply → report.
+- **Stepper workflow**: source → resolve → dry-run → apply → report.
 - **List providers**: bundled No Music For Genocide list plus paste/file/URL inputs.
 - **Internationalization**: English & Hebrew with RTL aware layout.
 - **Progress visibility**: per-phase apply badges, retry counters, and accessible label chips.
@@ -58,7 +58,7 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:5173` and walk through the wizard. The PKCE flow completes entirely in the browser; tokens are cached in `localStorage` for reuse during the session.
+Visit `http://localhost:5173` and walk through the app. The PKCE flow completes entirely in the browser; tokens are cached in `localStorage` for reuse during the session.
 
 ### 5. Build for production
 

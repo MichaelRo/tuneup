@@ -21,7 +21,7 @@
 - Styling via hand-rolled design tokens (`src/styles/tokens.css`) and a global stylesheet (`src/styles/global.css`).
 - Tests run through Vitest (`npm run test`); type safety enforced with `npm run typecheck` (tsc `--noEmit`).
 
-## Wizard Flow
+## App Flow
 
 1. **Source (`#/app`)** – load the No Music For Genocide list or bring your own (paste/file/URL). Displays artist/label counts and metadata.
 2. **Resolve (`#/resolve`)** – semi-automatic artist matching with `resolveArtists`; stores confirmed matches and skipped entries, preserving work between sessions via `loadState`/`updateState`.
@@ -67,7 +67,7 @@
 
 - PKCE flow kicks off with `beginAuthFlow`; tokens stored in `localStorage` under controlled keys.
 - Scope requirements: `user-follow-*`, `user-library-*`. Insufficient scope triggers a reconnect warning toast.
-- `handleAuthCallback` handles hash parsing and token exchange, returning to the wizard seamlessly.
+- `handleAuthCallback` handles hash parsing and token exchange, returning to the app seamlessly.
 
 ## Testing & Tooling
 

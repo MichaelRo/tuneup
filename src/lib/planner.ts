@@ -3,6 +3,7 @@ import type {
   Plan,
   PlanContext,
   PlanOptions,
+  PlanAlbumRemoval,
   PlanProgress,
   PlanRemovalReason,
   Track,
@@ -31,18 +32,18 @@ async function enrichAlbumMetadata(
   bannedLabelsSet: Set<string>,
 ): Promise<void> {
   if (!bannedLabelsSet.size) return;
-  const missingAlbumIds = new Set<string>();
+  const albumIdsToEnrich = new Set<string>();
   likedTracks.forEach(track => {
     if (!track.album?.id) return;
-    if (!track.album.label) missingAlbumIds.add(track.album.id);
+    if (!track.album.label) albumIdsToEnrich.add(track.album.id);
   });
   savedAlbums.forEach(album => {
     if (!album.id) return;
-    if (!album.label) missingAlbumIds.add(album.id);
+    if (!album.label) albumIdsToEnrich.add(album.id);
   });
-  if (!missingAlbumIds.size) return;
+  if (!albumIdsToEnrich.size) return;
 
-  const details = await albumsFull(Array.from(missingAlbumIds));
+  const details = await albumsFull(Array.from(albumIdsToEnrich));
   const byId = new Map(details.map(album => [album.id, album] as const));
 
   likedTracks.forEach(track => {
@@ -51,6 +52,7 @@ async function enrichAlbumMetadata(
     if (full) {
       track.album.label = track.album.label || full.label;
       track.album.release_date = track.album.release_date || full.release_date;
+      track.album.imageUrl = track.album.imageUrl || full.images?.[0]?.url;
       track.album.name = track.album.name || full.name;
     }
   });
@@ -60,6 +62,7 @@ async function enrichAlbumMetadata(
     if (full) {
       album.label = album.label || full.label;
       album.release_date = album.release_date || full.release_date;
+      album.imageUrl = album.imageUrl || full.images?.[0]?.url;
       album.name = album.name || full.name;
     }
   });
@@ -305,19 +308,23 @@ export async function buildPlan(
       id: track.id,
       name: track.name,
       artistNames: track.artists.map(artist => artist.name ?? artist.id),
-      albumName: track.album?.name,
+      albumName: track.album.name,
+      album: { imageUrl: track.album.imageUrl },
       reasons: trackReasons.get(track.id) ?? [],
     }));
 
   const albumsToRemove = albumIdsToRemove
     .map(id => savedAlbums.find(album => album.id === id))
     .filter((album): album is Album => Boolean(album))
-    .map(album => ({
-      id: album.id,
-      name: album.name,
-      artistNames: album.artists.map(artist => artist.name ?? artist.id),
-      reasons: albumReasons.get(album.id) ?? [],
-    }));
+    .map(
+      (album): PlanAlbumRemoval => ({
+        id: album.id,
+        name: album.name,
+        artistNames: album.artists.map(artist => artist.name ?? artist.id),
+        imageUrl: album.imageUrl,
+        reasons: albumReasons.get(album.id) ?? [],
+      }),
+    );
 
   const evidence = buildEvidence(
     likedTracks,

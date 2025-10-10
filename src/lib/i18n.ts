@@ -22,7 +22,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     cta_disconnect: 'Disconnect',
     cta_connect: 'Connect with Spotify (preview first)',
     cta_connected: 'Connected to Spotify',
-    cta_open_app: 'Open App',
+    cta_open_tool: 'Open Tool',
     cta_github: 'View on GitHub',
     hero_title: 'TuneUp: Refresh your Spotify library',
     hero_sub:
@@ -59,7 +59,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     step_preview_title: 'Plan Preview',
     step_apply_title: 'Apply Changes',
     step_report_title: 'Export Report',
-    stepper_intro: 'Step-by-step cleanup tool.',
+    stepper_intro: 'Step-by-step cleanup.',
     source_intro: 'Choose a list to target artists and labels.',
     source_default_label: 'No Music For Genocide (default)',
     source_paste_label: 'Paste list',
@@ -122,7 +122,9 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_connect_first: 'Connect with Spotify to continue.',
     resolve_artists_first: 'Resolve at least one artist first.',
     resolve_all_resolved: 'All artists are already resolved.',
+    all_artists_resolved: 'All artists are resolved.',
     resolve_view_list: 'View artist list',
+    resolve_sort_name: 'Name',
     resolve_sort_recent: 'Recent',
     resolve_following_badge: 'Following',
     preview_intro: 'Review what TuneUp will change before you apply it.',
@@ -217,7 +219,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
       'הצהרה רשמית: אנו תומכים במוזיקאים שקוראים לאחריות מוסרית. TuneUp נותן לכם לאסוף את הספרייה — בדרך שלכם.',
     cta_connect: 'התחברו ל-Spotify (תמיד תצוגה מוקדמת קודם)',
     cta_connected: 'מחובר ל-Spotify',
-    cta_open_app: 'פתיחת האפליקציה',
+    cta_open_tool: 'פתיחת הכלי',
     cta_github: 'צפו ב-GitHub',
     hero_title: 'TuneUp: רענון ספריית ה-Spotify',
     hero_sub:
@@ -254,7 +256,7 @@ const locales: Record<LocaleId, LocaleStrings> = {
     step_preview_title: 'תצוגת תוכנית',
     step_apply_title: 'החילו שינויים',
     step_report_title: 'ייצוא דוח',
-    stepper_intro: 'כלי ניקוי, צעד אחר צעד.',
+    stepper_intro: 'ניקוי, צעד אחר צעד.',
     source_intro: 'בחרו רשימה כדי למקד אמנים ולייבלים.',
     source_default_label: 'No Music For Genocide (ברירת מחדל)',
     source_paste_label: 'הדביקו רשימה',
@@ -317,6 +319,8 @@ const locales: Record<LocaleId, LocaleStrings> = {
     resolve_connect_first: 'יש להתחבר לספוטיפיי כדי להמשיך.',
     resolve_artists_first: 'יש להתאים לפחות אמן אחד תחילה.',
     resolve_all_resolved: 'כל האמנים כבר הותאמו.',
+    all_artists_resolved: 'כל האמנים הותאמו.',
+    resolve_sort_name: 'שם',
     resolve_view_list: 'הצג רשימת אמנים',
     resolve_sort_recent: 'אחרונים',
     resolve_following_badge: 'במעקב',
@@ -385,7 +389,6 @@ const locales: Record<LocaleId, LocaleStrings> = {
     report_version: 'גרסה',
     report_generated: 'נוצר ב',
     report_no_evidence: 'לא תועדו ראיות',
-    wizard_back: 'חזרה',
     app_ready: 'מוכן',
     app_all_matched: 'הכל הותאם',
     app_requeue: 'החזר לתור',
@@ -461,6 +464,7 @@ export function setLang(lang: LocaleId, options: { updateUrl?: boolean } = {}): 
   }
 
   listeners.forEach(cb => cb(currentLang));
+  showToast(t('toast_language_switch', { lang: t(`lang_${lang}`) }), 'info');
 }
 
 export function getLang(): LocaleId {
@@ -479,6 +483,7 @@ export function onLangChange(cb: (lang: LocaleId) => void): () => void {
 export function t(key: string, params?: Record<string, string | number>): string {
   const strings = getStrings();
   let value = strings[key] ?? key;
+
   if (params && typeof value === 'string') {
     Object.entries(params).forEach(([paramKey, paramValue]) => {
       value = value.replace(new RegExp(`{${paramKey}}`, 'g'), String(paramValue));
@@ -495,7 +500,6 @@ export function bindLanguageToggles(container: Element): void {
       const lang = (link as HTMLAnchorElement).dataset.lang as LocaleId | undefined;
       if (lang) {
         setLang(lang);
-        showToast(t('toast_language_switch', { lang: t(`lang_${lang}`) }), 'info');
       }
     });
   });

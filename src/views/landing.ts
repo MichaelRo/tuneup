@@ -73,7 +73,7 @@ export function renderLanding(): Node {
       el('a', {
         className: 'primary-btn',
         attrs: { href: FIRST_STEP_HASH },
-        text: t('cta_open_wizard'),
+        text: t('cta_open_tool'),
       }),
     );
   }
@@ -137,5 +137,5 @@ export function renderLanding(): Node {
   footer.appendChild(el('p', { text: t('footer_legal_3') }));
   main.appendChild(footer);
 
-  return buildShell(main, { title: 'TuneUp', subtitle: t('banner') });
+  return buildShell(main, { activeHash: '#/', title: t('stepper_title'), subtitle: t('banner') });
 }

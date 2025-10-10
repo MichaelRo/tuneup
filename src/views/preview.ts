@@ -11,58 +11,19 @@ import {
 } from '../app/state';
 import { t, formatNumber } from '../lib/i18n';
 import { buildPlan, getLastPlanContext, getLastFollowingSnapshot } from '../lib/planner';
-import { beginAuthFlow, SpotifyAuthError } from '../lib/spotify';
-import { el, setLoading, showToast, spinner } from '../lib/ui';
+import { SpotifyAuthError, beginAuthFlow } from '../lib/spotify';
+import { el, setLoading, showToast, spinner } from '../lib/ui.js';
 import type {
   Plan,
   PlanAlbumRemoval,
   PlanProgress,
   PlanTrackRemoval,
   ResolvedArtist,
-} from '../types/index';
+} from '../types';
 
-import { buildArtistChip, createLoadingCard, normalizeNameForCompare } from './components';
+import { buildArtistChip, createLoadingCard, normalizeNameForCompare } from './components.js';
 import { buildShell } from './shell';
-import { createSourceContent, maybeAutoLoadSelectedList } from './source';
-
-function buildReasonedArtistLine(names: string[], highlights: Set<string>): HTMLElement {
-  if (!names.length) {
-    return el('div', { className: 'plan-item-sub', text: t('unknown_artist') });
-  }
-  const line = el('div', { className: 'plan-item-sub' });
-  names.forEach((name, index) => {
-    if (index) line.appendChild(document.createTextNode(', '));
-    const normalized = normalizeNameForCompare(name);
-    const span = el('span', {
-      className: highlights.has(normalized) ? 'reason-artist' : undefined,
-      text: name,
-    });
-    line.appendChild(span);
-  });
-  return line;
-}
-
-function buildLabelReason(labels: string[]): HTMLElement {
-  const unique = labels.map(label => (label ?? '').trim()).filter(Boolean);
-  const wrapper = el('div', { className: 'plan-item-label' });
-  if (!unique.length) {
-    wrapper.appendChild(
-      el('span', { className: 'reason-label-badge', text: t('plan_label_badge') }),
-    );
-    wrapper.appendChild(
-      el('span', { className: 'reason-label-prefix', text: t('plan_label_prefix') }),
-    );
-    return wrapper;
-  }
-  wrapper.appendChild(el('span', { className: 'reason-label-badge', text: t('plan_label_badge') }));
-  wrapper.appendChild(
-    el('span', { className: 'reason-label-prefix', text: t('plan_label_prefix') }),
-  );
-  labels.forEach(label => {
-    wrapper.appendChild(el('span', { className: 'reason-label', text: label }));
-  });
-  return wrapper;
-}
+import { createSourceContent, maybeAutoLoadSelectedList } from './source.js';
 
 function renderPlanSummary(plan: Plan): HTMLElement {
   const wrapper = el('div', { className: 'plan-summary' });
@@ -118,19 +79,32 @@ function buildPlanTrackSection(plan: Plan): HTMLElement {
   }
   const list = el('ul', { className: 'plan-item-list' });
   tracksToDisplay.forEach((track: PlanTrackRemoval) => {
-    const item = el('li', { className: 'plan-item' });
-    const checkbox = el('input', {
-      attrs: { type: 'checkbox', checked: 'true', 'data-track-id': track.id },
+    const item = el('label', { className: 'plan-item' });
+    const toggle = el('div', { className: 'toggle-switch' });
+    const input = el('input', {
+      attrs: { type: 'checkbox', 'data-track-id': track.id },
     }) as HTMLInputElement;
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) {
+    input.checked = true;
+    input.addEventListener('change', () => {
+      if (input.checked) {
         state.planExclusions.tracks.delete(track.id);
       } else {
         state.planExclusions.tracks.add(track.id);
       }
       renderRoute();
     });
-    item.appendChild(checkbox);
+    toggle.appendChild(input);
+    toggle.appendChild(el('span', { className: 'toggle-slider' }));
+    item.appendChild(toggle);
+
+    if (track.album?.imageUrl) {
+      const trackArt = el('img', {
+        className: 'roster-avatar roster-avatar--sm',
+        attrs: { src: track.album.imageUrl, alt: '' },
+      });
+      item.appendChild(trackArt);
+    }
+
     const trackInfo = el('div', { className: 'plan-item-info' });
     trackInfo.appendChild(
       el('div', { className: 'plan-item-title', text: track.name ?? track.id }),
@@ -138,13 +112,15 @@ function buildPlanTrackSection(plan: Plan): HTMLElement {
     const highlightSet = new Set(
       track.reasons
         .filter(reason => reason.type === 'artist')
-        .map(reason => normalizeNameForCompare(reason.name ?? reason.id)),
+        .map(reason => normalizeNameForCompare(reason.name ?? reason.id ?? '')),
     );
     trackInfo.appendChild(buildReasonedArtistLine(track.artistNames, highlightSet));
     if (track.albumName) {
       trackInfo.appendChild(el('div', { className: 'plan-item-meta', text: track.albumName }));
     }
-    const labelReasons = track.reasons.filter(reason => reason.type === 'label');
+    const labelReasons = track.reasons.filter(
+      (reason): reason is { type: 'label'; label: string } => reason.type === 'label',
+    );
     if (labelReasons.length) {
       const labels = Array.from(
         new Set(
@@ -177,19 +153,31 @@ function buildPlanAlbumSection(plan: Plan): HTMLElement {
   }
   const list = el('ul', { className: 'plan-item-list' });
   albumsToDisplay.forEach((album: PlanAlbumRemoval) => {
-    const item = el('li', { className: 'plan-item' });
-    const checkbox = el('input', {
-      attrs: { type: 'checkbox', checked: 'true', 'data-album-id': album.id },
+    const item = el('label', { className: 'plan-item' });
+    const toggle = el('div', { className: 'toggle-switch' });
+    const input = el('input', {
+      attrs: { type: 'checkbox', 'data-album-id': album.id },
     }) as HTMLInputElement;
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) {
+    input.checked = true;
+    input.addEventListener('change', () => {
+      if (input.checked) {
         state.planExclusions.albums.delete(album.id);
       } else {
         state.planExclusions.albums.add(album.id);
       }
       renderRoute();
     });
-    item.appendChild(checkbox);
+    toggle.appendChild(input);
+    toggle.appendChild(el('span', { className: 'toggle-slider' }));
+    item.appendChild(toggle);
+
+    if (album.imageUrl) {
+      const albumArt = el('img', {
+        className: 'roster-avatar roster-avatar--sm',
+        attrs: { src: album.imageUrl, alt: '' },
+      });
+      item.appendChild(albumArt);
+    }
     const albumInfo = el('div', { className: 'plan-item-info' });
     albumInfo.appendChild(
       el('div', { className: 'plan-item-title', text: album.name ?? album.id }),
@@ -197,10 +185,12 @@ function buildPlanAlbumSection(plan: Plan): HTMLElement {
     const highlightSet = new Set(
       album.reasons
         .filter(reason => reason.type === 'artist')
-        .map(reason => normalizeNameForCompare(reason.name ?? reason.id)),
+        .map(reason => normalizeNameForCompare(reason.name ?? reason.id ?? '')),
     );
     albumInfo.appendChild(buildReasonedArtistLine(album.artistNames, highlightSet));
-    const labelReasons = album.reasons.filter(reason => reason.type === 'label');
+    const labelReasons = album.reasons.filter(
+      (reason): reason is { type: 'label'; label: string } => reason.type === 'label',
+    );
     if (labelReasons.length) {
       const labels = Array.from(
         new Set(
@@ -221,30 +211,68 @@ function buildPlanAlbumSection(plan: Plan): HTMLElement {
   return section;
 }
 
+function buildReasonedArtistLine(names: string[], highlights: Set<string>): HTMLElement {
+  if (!names.length) {
+    return el('div', { className: 'plan-item-sub', text: t('unknown_artist') });
+  }
+  const line = el('div', { className: 'plan-item-sub' });
+  names.forEach((name, index) => {
+    if (index) line.appendChild(document.createTextNode(', '));
+    const normalized = normalizeNameForCompare(name);
+    const span = el('span', {
+      className: highlights.has(normalized) ? 'reason-artist' : undefined,
+      text: name,
+    });
+    line.appendChild(span);
+  });
+  return line;
+}
+
+function buildLabelReason(labels: string[]): HTMLElement {
+  const unique = labels.map(label => (label ?? '').trim()).filter(Boolean);
+  const wrapper = el('div', { className: 'plan-item-label' });
+  if (!unique.length) {
+    return wrapper;
+  }
+  wrapper.appendChild(el('span', { className: 'reason-label-badge', text: t('plan_label_badge') }));
+  wrapper.appendChild(
+    el('span', { className: 'reason-label-prefix', text: t('plan_label_prefix') }),
+  );
+  unique.forEach(label => {
+    wrapper.appendChild(el('span', { className: 'reason-label', text: label }));
+  });
+  return wrapper;
+}
+
 function buildToggle(key: keyof AppState['options'], label: string): HTMLElement {
   const wrapper = el('label', { className: 'option-toggle' });
+  const toggle = el('div', { className: 'toggle-switch' });
   const input = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
+  input.id = `option-${key}`;
+  wrapper.htmlFor = input.id;
   input.checked = state.options[key];
   input.addEventListener('change', () => {
     state.options[key] = input.checked;
     invalidateGeneratedPlan();
     renderRoute();
   });
-  wrapper.appendChild(input);
+  toggle.appendChild(input);
+  toggle.appendChild(el('span', { className: 'toggle-slider' }));
+  wrapper.appendChild(toggle);
   wrapper.appendChild(el('span', { text: label }));
   return wrapper;
 }
 
 async function runPreview(button: HTMLButtonElement): Promise<void> {
   if (!state.resolvedArtists.length && state.options.includeLabelCleanup) {
-    // This toast is now defined in i18n
-    showToast('Resolve artists or disable label cleanup.', 'warning');
+    showToast(t('preview_artists_or_disable_labels'), 'warning');
   }
   const artistIds = state.resolvedArtists.map(a => a.id);
   const labelNames = state.options.includeLabelCleanup ? getLabelInputs().map(l => l.name) : [];
   const stages: Array<'following' | 'tracks' | 'albums' | 'enrich'> = ['following', 'tracks'];
   if (state.options.includeAlbums || labelNames.length > 0) stages.push('albums');
-  if (labelNames.length) stages.push('enrich');
+  if (labelNames.length > 0) stages.push('enrich');
+
   const stageIndexMap = new Map(stages.map((s, i) => [s, i]));
 
   const updatePreviewProgress = (
@@ -283,7 +311,7 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
       },
       {
         onProgress: (update: PlanProgress): void => {
-          const stageLabels = {
+          const stageLabels: Record<PlanProgress['stage'], string> = {
             following: t('preview_fetch_following'),
             tracks: t('preview_scan_tracks'),
             albums: t('preview_scan_albums'),
@@ -297,7 +325,6 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
               ? 1
               : 0;
           updatePreviewProgress(update.stage, ratio);
-          renderRoute();
         },
       },
     );
@@ -351,13 +378,8 @@ function createPreviewContent(): HTMLElement {
   const runBtn = el('button', { className: 'primary-btn', text: t('preview_run_btn') });
   runBtn.addEventListener('click', e => {
     e.preventDefault();
-    if (
-      !state.plan ||
-      !state.planGeneratedAt ||
-      state.planGeneratedAt < new Date(Date.now() - 1000).toISOString()
-    ) {
-      void runPreview(runBtn as HTMLButtonElement);
-    }
+    if (state.previewProgress.running || state.plan) return;
+    void runPreview(runBtn as HTMLButtonElement);
   });
   actions.appendChild(runBtn);
 
@@ -423,7 +445,7 @@ export function renderPreviewStep(): Node {
     return buildShell(createSourceContent(), { activeHash: '#/app', title: t('stepper_title') });
   }
   if (!getArtistInputs().length) {
-    showToast('No artists to resolve in the current list.', 'warning');
+    showToast(t('resolve_no_artists_in_list'), 'warning');
     if (HAS_SINGLE_LIST) {
       return buildShell(createSourceContent(), {
         activeHash: '#/resolve',
@@ -434,7 +456,7 @@ export function renderPreviewStep(): Node {
     return buildShell(createSourceContent(), { activeHash: '#/app', title: t('stepper_title') });
   }
   if (!state.resolvedArtists.length) {
-    showToast('Resolve at least one artist first.', 'warning');
+    showToast(t('resolve_artists_first'), 'warning');
     navigate('#/resolve');
     return document.createDocumentFragment();
   }

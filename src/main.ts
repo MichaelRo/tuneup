@@ -2,7 +2,13 @@ import { HAS_SINGLE_LIST, FIRST_STEP_HASH } from './app/config';
 import { initRouting, navigate, renderRoute, handleRouteActions } from './app/routing';
 import { isConnected, setConnected } from './app/state';
 import { initI18n, onLangChange, t } from './lib/i18n';
-import { handleAuthCallback, hasToken } from './lib/spotify';
+import {
+  handleAuthCallback,
+  hasToken,
+  meFollowingArtists,
+  meLikedTracks,
+  meSavedAlbums,
+} from './lib/spotify';
 import { showToast } from './lib/ui';
 import './styles/global.css';
 import type { ToastType } from './types/ui';
@@ -40,8 +46,16 @@ async function init(): Promise<void> {
     if (result?.ok) {
       setConnected(true);
       if (!HAS_SINGLE_LIST) {
-        if (location.hash !== FIRST_STEP_HASH) navigate(FIRST_STEP_HASH);
+        if (location.hash === '#/' || location.hash === '') {
+          navigate(FIRST_STEP_HASH);
+        }
       }
+    }
+    if (isConnected()) {
+      // Pre-fetch user library data in the background on login or page load
+      void meFollowingArtists();
+      void meLikedTracks();
+      void meSavedAlbums();
     }
   } catch (err) {
     console.error('Auth callback failed', err);

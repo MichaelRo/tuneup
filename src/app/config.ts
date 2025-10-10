@@ -13,7 +13,7 @@ export const STEP_ROUTES = STEP_KEYS.map(key => {
   return { hash, key: `step_${key}_title` as const };
 });
 
-export type WizardRoute = (typeof STEP_ROUTES)[number]['hash'] | typeof ROUTE_DEFAULT;
+export type AppRoute = (typeof STEP_ROUTES)[number]['hash'] | typeof ROUTE_DEFAULT;
 
-export const ALL_ROUTES: WizardRoute[] = [ROUTE_DEFAULT, ...STEP_ROUTES.map(route => route.hash)];
+export const ALL_ROUTES: AppRoute[] = [ROUTE_DEFAULT, ...STEP_ROUTES.map(route => route.hash)];
 export const FIRST_STEP_HASH = STEP_ROUTES[0]?.hash ?? '#/resolve';

@@ -12,7 +12,7 @@ _Last updated: 2025-10-06 · Owner: UX Research_
 ## Third-Party Auth & Onboarding Best Practices
 
 - **Spotify Authorization Code with PKCE** flow must foreground consent scope and reassure on data residency ([Spotify Authorization Guide – PKCE, 2023](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow)).
-- Progressive onboarding: allow exploration of the wizard pre-auth, but surface “connect” nudges at decision points ([Nielsen Norman Group – Progressive Disclosure in Onboarding, 2022](https://www.nngroup.com/articles/progressive-disclosure-onboarding/)).
+- Progressive onboarding: allow exploration of the app pre-auth, but surface “connect” nudges at decision points (Nielsen Norman Group – Progressive Disclosure in Onboarding, 2022).
 - Provide **scope rationale** during consent and highlight ability to disconnect from Spotify account settings (GDPR/CCPA-aligned messaging echoed in Stripe and Slack OAuth UIs).
 
 ## Bulk Review / Approval UX

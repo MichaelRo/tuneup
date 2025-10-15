@@ -1,9 +1,9 @@
 import { ROUTE_DEFAULT, STEP_ROUTES, type AppRoute } from '../app/config';
 import { navigate } from '../app/routing';
 import { handleLogout, isConnected } from '../app/state';
+import { beginAuthFlow } from '../auth';
 import { getLang, bindLanguageToggles, t } from '../lib/i18n';
-import { beginAuthFlow } from '../lib/spotify';
-import { el } from '../lib/ui';
+import { el } from '../ui';
 
 function languageToggleNode(): HTMLElement {
   const current = getLang();
@@ -54,6 +54,18 @@ function buildAuthStatusControls(options: { compact?: boolean } = {}): HTMLEleme
   return wrapper;
 }
 
+function buildSettingsButton(): HTMLElement {
+  const button = el('a', {
+    className: 'ghost-btn',
+    attrs: { href: '#/settings' },
+  });
+  const icon = document.createElement('img');
+  icon.src = '/assets/icons/settings.svg';
+  icon.alt = 'Settings';
+  button.appendChild(icon);
+  return button;
+}
+
 function buildShellHeader(title: string, subtitle?: string): HTMLElement {
   const header = el('header', { className: 'shell-header' });
   const stack = el('div', { className: 'header-stack' });
@@ -73,6 +85,7 @@ function buildShellHeader(title: string, subtitle?: string): HTMLElement {
     actions.appendChild(buildAuthStatusControls({ compact: true }));
   }
   actions.appendChild(languageToggleNode());
+  actions.appendChild(buildSettingsButton());
   bindLanguageToggles(actions);
   header.appendChild(actions);
   return header;

@@ -13,7 +13,7 @@ import {
 } from '../app/state';
 import { t, formatNumber } from '../lib/i18n';
 import { loadCuratedList } from '../lib/providers';
-import { el, showToast, spinner } from '../lib/ui';
+import { el, showToast, spinner } from '../ui';
 
 import { createMetricCard, createLoadingCard } from './components';
 import { buildShell } from './shell';
@@ -144,7 +144,7 @@ export function createSourceContent(): HTMLElement {
       showToast(t('resolve_connect_first'), 'warning');
       return;
     }
-    void maybeAutoLoadSelectedList();
+    void maybeAutoLoadSelectedList({ force: true }).then(() => renderRoute());
   });
   actions.appendChild(loadBtn);
 
@@ -183,7 +183,6 @@ export function renderSourceStep(): Node {
       title: t('stepper_title'),
     });
   }
-  const content = createSourceContent();
-  void maybeAutoLoadSelectedList();
-  return buildShell(content, { activeHash: '#/app', title: t('stepper_title') });
+  // Don't auto-load here, wait for user action.
+  return buildShell(createSourceContent(), { activeHash: '#/app', title: t('stepper_title') });
 }

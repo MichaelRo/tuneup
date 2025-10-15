@@ -69,6 +69,71 @@ npm run preview  # optional sanity check
 
 The static output lives in `dist/` and can be deployed to GitHub Pages, Netlify, Cloudflare Pages, etc.
 
+## Project Map & Conventions
+
+### Directory Structure
+
+```
+src/
+├── app/                    # Application routing and state
+│   ├── config.ts          # Routes, constants, configuration
+│   ├── routing.ts         # Hash-based router implementation
+│   └── state.ts           # Global application state management
+├── auth/                   # Authentication (PKCE OAuth)
+│   ├── index.ts           # Main auth module (exports)
+│   ├── pkce.ts            # PKCE utilities (challenge, verifier, state)
+│   └── tokens.ts          # Token storage, refresh, expiry logic
+├── spotify/               # Spotify API integration
+│   ├── index.ts           # Main Spotify module (exports)
+│   ├── client.ts          # Typed fetch wrapper (401 refresh + 429 backoff)
+│   ├── api.ts             # Spotify API endpoints and data fetching
+│   └── types.ts           # Spotify API response type definitions
+├── ui/                    # UI components and utilities
+│   ├── index.ts           # Main UI module (exports)
+│   ├── core.ts            # DOM primitives (render, el, clear)
+│   ├── modal.ts           # Modal system with focus trap
+│   ├── toast.ts           # Toast notifications with ARIA
+│   └── a11y.ts            # Accessibility utilities (focus trap, skip links)
+├── lib/                   # Shared utilities
+│   ├── i18n.ts            # Internationalization (English/Hebrew)
+│   ├── cache.ts           # IndexedDB caching layer
+│   ├── providers.ts       # Data source providers
+│   ├── resolver.ts        # Artist name resolution
+│   ├── planner.ts         # Plan generation logic
+│   ├── apply.ts           # Plan execution engine
+│   └── report.ts          # Export functionality (JSON/CSV)
+├── views/                 # Page components
+│   ├── shell.ts           # App shell (header, sidebar, navigation)
+│   ├── landing.ts         # Landing page
+│   ├── source.ts          # Source selection step
+│   ├── resolve.ts         # Artist resolution step
+│   ├── preview.ts         # Plan preview step
+│   ├── apply.ts           # Plan execution step
+│   ├── report.ts          # Results export step
+│   └── components.ts      # Shared view components
+├── types/                 # TypeScript type definitions
+│   ├── index.ts           # Application domain types
+│   └── ui.ts              # UI-specific types
+└── styles/                # CSS stylesheets
+    ├── global.css         # Global styles
+    └── tokens.css         # Design tokens
+```
+
+### Import Conventions
+
+- **Main modules**: Import from `auth/`, `spotify/`, `ui/` (re-exports everything)
+- **Specific modules**: Import from `auth/pkce`, `spotify/client`, `ui/modal` for specific functionality
+- **Legacy modules**: `lib/` contains utilities that haven't been refactored yet
+- **Views**: Import from `views/` for page components
+
+### Code Organization Principles
+
+1. **Separation of Concerns**: Each directory has a single responsibility
+2. **Thin Wrappers**: `spotify/client.ts` centralizes retry/refresh logic
+3. **Accessibility First**: `ui/a11y.ts` provides consistent keyboard navigation
+4. **Type Safety**: All Spotify API responses are typed in `spotify/types.ts`
+5. **Error Boundaries**: Global error handling in `main.ts`
+
 ## Quality stack
 
 - **TypeScript** (`strict`) across the entire codebase.

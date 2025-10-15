@@ -1,8 +1,8 @@
 import { HAS_SINGLE_LIST, curatedLists, FIRST_STEP_HASH, STEP_ROUTES } from '../app/config';
 import { state, isConnected, getArtistCount, getLabelCount, handleLogout } from '../app/state';
 import { t, formatNumber } from '../lib/i18n';
-import { beginAuthFlow } from '../lib/spotify';
-import { el } from '../lib/ui';
+import { beginAuthFlow, meFollowingArtists, meLikedTracks, meSavedAlbums } from '../spotify';
+import { el } from '../ui';
 
 import { createMetricCard } from './components';
 import { buildShell } from './shell';
@@ -136,6 +136,13 @@ export function renderLanding(): Node {
   footer.appendChild(el('p', { text: t('footer_legal_2') }));
   footer.appendChild(el('p', { text: t('footer_legal_3') }));
   main.appendChild(footer);
+
+  // Smart preloading on the landing page for a faster subsequent experience.
+  if (isConnected()) {
+    void meFollowingArtists();
+    void meLikedTracks();
+    void meSavedAlbums();
+  }
 
   return buildShell(main, { activeHash: '#/', title: t('stepper_title'), subtitle: t('banner') });
 }

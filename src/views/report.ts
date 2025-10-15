@@ -2,8 +2,8 @@ import { navigate } from '../app/routing.js';
 import { state } from '../app/state.js';
 import { t, getLang } from '../lib/i18n.js';
 import { exportJson, exportCsv } from '../lib/report.js';
-import { el } from '../lib/ui.js';
 import type { Plan } from '../types/index.js';
+import { el } from '../ui';
 
 import { buildShell } from './shell.js';
 

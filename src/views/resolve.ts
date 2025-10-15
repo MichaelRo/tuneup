@@ -14,29 +14,25 @@ import {
   type ArtistCandidate,
   type ResolveArtistsResult,
 } from '../lib/resolver.js';
+import { updateState } from '../lib/state.js';
 import {
   artistsFull,
-  invalidateSpotifyCaches,
   meFollowingArtists,
   meFollowingContains,
   meLikedTracks,
   meSavedAlbums,
-} from '../lib/spotify.js';
-import { updateState, loadState } from '../lib/state.js';
-import { el, setLoading, showToast, showChoiceModal, showSimpleModal } from '../lib/ui.js';
+} from '../spotify';
 import type { ResolvedArtist } from '../types/index.js';
+import { el, setLoading, showToast, showChoiceModal, showSimpleModal } from '../ui';
 
 import {
   createMetricCard,
-  createLoadingCard,
   buildArtistChip,
   buildArtistInfo,
   findSourceItemByName,
 } from './components.js';
 import { buildShell } from './shell.js';
-import { maybeAutoLoadSelectedList, renderSourceStep } from './source.js';
-
-let prefetchedLibrary = false;
+import { maybeAutoLoadSelectedList } from './source.js';
 
 let autoResolveInFlight = false;
 let resolvePreviewSort: 'recent' | 'name' | 'followers' = 'followers';
@@ -56,55 +52,6 @@ async function persistSkipDecision(name: string): Promise<void> {
     draft.nameToId[name] = { id: '__skip__', verifiedAt: now };
     draft.nameToId[canonical] = { id: '__skip__', verifiedAt: now };
   });
-}
-
-async function hydrateResolvedFromCache(): Promise<void> {
-  if (!state.pendingArtists.length) return;
-  try {
-    const saved = await loadState();
-    const cache = saved.nameToId ?? {};
-    if (!Object.keys(cache).length) return;
-
-    const stillPending: string[] = [];
-    const resolvedFromCache: ResolvedArtist[] = [];
-    const skippedFromCache: string[] = [];
-
-    for (const name of state.pendingArtists) {
-      const entry = cache[name] ?? cache[canonicalName(name)];
-      if (!entry) {
-        stillPending.push(name);
-        continue;
-      }
-      if (entry.id === '__skip__' || entry.id === '__missing__') {
-        skippedFromCache.push(name);
-      } else if (entry.id) {
-        resolvedFromCache.push({
-          input: name,
-          id: entry.id,
-          name,
-          followers: 0,
-        });
-      } else {
-        stillPending.push(name);
-      }
-    }
-
-    if (resolvedFromCache.length > 0) {
-      state.resolvedArtists.push(...resolvedFromCache);
-    }
-    if (skippedFromCache.length > 0) {
-      state.skippedArtists = uniqueNames([...state.skippedArtists, ...skippedFromCache]);
-    }
-    state.pendingArtists = uniqueNames(stillPending);
-
-    if (resolvedFromCache.length > 0 || skippedFromCache.length > 0) {
-      invalidateGeneratedPlan();
-      void enrichAndRenderArtists(state.resolvedArtists);
-      renderRoute();
-    }
-  } catch (err) {
-    console.warn('Unable to hydrate cached resolutions', err);
-  }
 }
 
 function applyResolveResult(
@@ -194,6 +141,11 @@ const RESOLVED_PREVIEW_LIMIT = 8;
 async function enrichAndRenderArtists(artists: ResolvedArtist[]): Promise<void> {
   if (!artists.length) return;
 
+  // If not connected, we can't enrich. The UI will show placeholders.
+  if (!isConnected()) {
+    return;
+  }
+
   const artistIds = artists.map(a => a.id);
 
   // In parallel, fetch full artist details (for images/followers) and follow status
@@ -223,38 +175,43 @@ async function enrichAndRenderArtists(artists: ResolvedArtist[]): Promise<void> 
       state.resolvedArtists.push(artist);
     }
   });
-  renderRoute();
 }
 
-async function runAutoResolve(options: { force?: boolean } = {}): Promise<void> {
+async function runAutoResolve(
+  options: { force?: boolean; onComplete?: () => void } = {},
+): Promise<void> {
   if (autoResolveInFlight) return;
-  if (!state.followingArtistIds.length && isConnected()) {
-    // Ensure we have the following list before running the resolver, which needs it for context.
-    state.followingArtistIds = await meFollowingArtists();
+  if (!isConnected()) {
+    if (options.force) {
+      showToast(t('resolve_connect_first'), 'warning');
+    }
+    return;
   }
   if (!state.sourceList) {
-    await maybeAutoLoadSelectedList({ force: true });
+    if (options.force) {
+      showToast(t('toast_load_list_first'), 'warning');
+    }
+    return;
   }
-
-  if (!state.sourceList || !isConnected() || !state.pendingArtists.length) return;
+  if (!state.pendingArtists.length) {
+    return;
+  }
   if (!options.force && state.autoResolveAttempted) return;
 
   autoResolveInFlight = true;
   state.autoResolveAttempted = true;
   state.resolutionRunning = true;
-  renderRoute();
 
   try {
+    // The `onAmbiguity` handler is intentionally omitted here for a non-interactive scan.
+    // Ambiguous items will be moved to the 'skipped' category by `resolveArtists`.
     const pendingSnapshot = [...state.pendingArtists];
-    const outcome = await resolveArtists(
-      pendingSnapshot.map(name => ({ type: 'artist', name })),
-      {},
-      async result => {
-        const partialOutcome = applyResolveResult(pendingSnapshot, result);
-        await enrichAndRenderArtists(result.resolved);
-        return partialOutcome;
-      },
-    );
+    const outcome = await resolveArtists(pendingSnapshot.map(name => ({ type: 'artist', name })));
+
+    // This mutates state and needs to be awaited before enriching.
+    applyResolveResult(pendingSnapshot, outcome);
+    await enrichAndRenderArtists(outcome.resolved);
+
     state.autoResolveCompleted = !outcome.cancelled;
 
     const parts: string[] = [];
@@ -279,8 +236,11 @@ async function runAutoResolve(options: { force?: boolean } = {}): Promise<void> 
     showToast(t('resolve_fail'), 'error');
   } finally {
     state.resolutionRunning = false;
-    autoResolveInFlight = false;
-    renderRoute();
+    // Add a small delay to prevent race conditions with UI updates
+    setTimeout(() => {
+      autoResolveInFlight = false;
+    }, 200);
+    options.onComplete?.();
   }
 }
 
@@ -288,16 +248,17 @@ async function handleAmbiguity(
   input: string,
   candidates: ArtistCandidate[],
 ): Promise<{ choice: ArtistCandidate | null; skipped?: boolean; cancel?: boolean }> {
-  const choices = candidates.slice(0, 5).map(candidate => {
-    const artistInfo = buildArtistInfo(
-      { ...candidate, name: candidate.name ?? 'Unknown' },
-      { compact: true, showSourceDiff: false, showFollow: false },
+  const choices = candidates.slice(0, 5).map((candidate: ArtistCandidate) => {
+    const artistInfo = buildArtistInfo(candidate, { compact: true, showFollow: false });
+    const label = el('div');
+    label.appendChild(artistInfo);
+    label.appendChild(
+      el('span', {
+        className: 'modal-choice-subtitle',
+        text: `${formatNumber(candidate.followers ?? 0)} ${t('resolve_followers')}`,
+      }),
     );
-    const followers = el('span', {
-      className: 'modal-choice-sub',
-      text: `${formatNumber(candidate.followers ?? 0)} ${t('resolve_followers')}`,
-    });
-    const label = el('div', { children: [artistInfo, followers] });
+
     return { label, value: candidate };
   });
   let skipped = false;
@@ -347,7 +308,7 @@ function buildResolveStatusBanner(pendingCount: number, skippedCount: number): H
     });
     retryBtn.addEventListener('click', e => {
       e.preventDefault();
-      void runAutoResolve({ force: true });
+      void runAutoResolve({ force: true, onComplete: renderRoute });
     });
     banner.appendChild(retryBtn);
     return banner;
@@ -382,9 +343,31 @@ function buildResolvedPreviewSort(): HTMLElement {
   return control;
 }
 
+function buildResolvedPreviewGridSkeleton(): HTMLElement {
+    const wrapper = el('div', { className: 'artist-chip-grid' });
+    for (let i = 0; i < RESOLVED_PREVIEW_LIMIT; i++) {
+        const chip = el('div', { className: 'artist-chip is-loading' });
+        const avatar = el('div', { className: 'roster-avatar roster-avatar--sm' });
+        const details = el('div', { className: 'artist-details artist-details--compact' });
+        const line1 = el('div', { className: 'skeleton-line' });
+        line1.style.width = '100px';
+        details.appendChild(line1);
+        const line2 = el('div', { className: 'skeleton-line' });
+        line2.style.width = '60px';
+        details.appendChild(line2);
+        chip.appendChild(avatar);
+        chip.appendChild(details);
+        wrapper.appendChild(chip);
+    }
+    return wrapper;
+}
+
 function buildResolvedPreviewGrid(limit = RESOLVED_PREVIEW_LIMIT): HTMLElement {
   const wrapper = el('div', { className: 'artist-chip-grid' });
   if (!state.resolvedArtists.length) {
+      if (state.resolutionRunning || state.sourceLoading) {
+          return buildResolvedPreviewGridSkeleton();
+      }
     wrapper.appendChild(el('div', { className: 'muted', text: t('no_artists_resolved') }));
     return wrapper;
   }
@@ -554,50 +537,52 @@ function showArtistRosterModal(onUpdate?: () => void): void {
     }
     const scroll = el('div', { className: 'roster-scroll' });
     const list = el('ul', { className: 'roster-list' });
-    state.pendingArtists.forEach(name => {
-      const row = el('li', { className: 'roster-row' });
-      const sourceItem = findSourceItemByName(name);
-      const info = buildArtistInfo(
-        {
-          name,
-          isFollowing: isArtistFollowed(sourceItem?.spotifyId),
-          input: name,
-          id: sourceItem?.spotifyId,
-        },
-        {
-          showSourceDiff: false,
-          link: Boolean(sourceItem?.spotifyId),
-        },
-      );
-      row.appendChild(info);
-      const actions = el('div', { className: 'roster-row-actions' });
-      const reviewBtn = el('button', {
-        className: 'primary-btn',
-        text: t('app_review'),
-      }) as HTMLButtonElement;
-      reviewBtn.addEventListener('click', (): void => {
-        void reviewSingleArtist(name, reviewBtn, () => rerender());
+    [...state.pendingArtists]
+      .sort((a, b) => a.localeCompare(b))
+      .forEach(name => {
+        const row = el('li', { className: 'roster-row' });
+        const sourceItem = findSourceItemByName(name);
+        const info = buildArtistInfo(
+          {
+            name,
+            isFollowing: isArtistFollowed(sourceItem?.spotifyId),
+            input: name,
+            id: sourceItem?.spotifyId,
+          },
+          {
+            showSourceDiff: false,
+            link: Boolean(sourceItem?.spotifyId),
+          },
+        );
+        row.appendChild(info);
+        const actions = el('div', { className: 'roster-row-actions' });
+        const reviewBtn = el('button', {
+          className: 'primary-btn',
+          text: t('app_review'),
+        }) as HTMLButtonElement;
+        reviewBtn.addEventListener('click', (): void => {
+          void reviewSingleArtist(name, reviewBtn, () => rerender());
+        });
+        actions.appendChild(reviewBtn);
+        const skipBtn = el('button', {
+          className: 'secondary-btn',
+          text: t('app_skip'),
+        }) as HTMLButtonElement;
+        skipBtn.addEventListener('click', async () => {
+          skipBtn.disabled = true;
+          try {
+            await skipPendingArtist(name);
+            rerender();
+          } catch (err) {
+            console.error(err);
+            showToast(t('resolve_fail_skip'), 'error');
+            skipBtn.disabled = false;
+          }
+        });
+        actions.appendChild(skipBtn);
+        row.appendChild(actions);
+        list.appendChild(row);
       });
-      actions.appendChild(reviewBtn);
-      const skipBtn = el('button', {
-        className: 'secondary-btn',
-        text: t('app_skip'),
-      }) as HTMLButtonElement;
-      skipBtn.addEventListener('click', async () => {
-        skipBtn.disabled = true;
-        try {
-          await skipPendingArtist(name);
-          rerender();
-        } catch (err) {
-          console.error(err);
-          showToast(t('resolve_fail_skip'), 'error');
-          skipBtn.disabled = false;
-        }
-      });
-      actions.appendChild(skipBtn);
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
     scroll.appendChild(list);
     section.appendChild(scroll);
     return section;
@@ -614,42 +599,44 @@ function showArtistRosterModal(onUpdate?: () => void): void {
     }
     const scroll = el('div', { className: 'roster-scroll' });
     const list = el('ul', { className: 'roster-list' });
-    state.skippedArtists.forEach(name => {
-      const row = el('li', { className: 'roster-row' });
-      const sourceItem = findSourceItemByName(name);
-      const info = buildArtistInfo(
-        {
-          name,
-          isFollowing: isArtistFollowed(sourceItem?.spotifyId),
-          input: name,
-          id: sourceItem?.spotifyId,
-        },
-        {
-          showSourceDiff: false,
-          link: Boolean(sourceItem?.spotifyId),
-        },
-      );
-      row.appendChild(info);
-      const actions = el('div', { className: 'roster-row-actions' });
-      const retryBtn = el('button', {
-        className: 'secondary-btn',
-        text: t('app_requeue'),
-      }) as HTMLButtonElement;
-      retryBtn.addEventListener('click', async () => {
-        retryBtn.disabled = true;
-        try {
-          await requeueSkippedArtist(name);
-          rerender();
-        } catch (err) {
-          console.error(err);
-          showToast(t('resolve_fail_requeue'), 'error');
-          retryBtn.disabled = false;
-        }
+    [...state.skippedArtists]
+      .sort((a, b) => a.localeCompare(b))
+      .forEach(name => {
+        const row = el('li', { className: 'roster-row' });
+        const sourceItem = findSourceItemByName(name);
+        const info = buildArtistInfo(
+          {
+            name,
+            isFollowing: isArtistFollowed(sourceItem?.spotifyId),
+            input: name,
+            id: sourceItem?.spotifyId,
+          },
+          {
+            showSourceDiff: false,
+            link: Boolean(sourceItem?.spotifyId),
+          },
+        );
+        row.appendChild(info);
+        const actions = el('div', { className: 'roster-row-actions' });
+        const retryBtn = el('button', {
+          className: 'secondary-btn',
+          text: t('app_requeue'),
+        }) as HTMLButtonElement;
+        retryBtn.addEventListener('click', async () => {
+          retryBtn.disabled = true;
+          try {
+            await requeueSkippedArtist(name);
+            rerender();
+          } catch (err) {
+            console.error(err);
+            showToast(t('resolve_fail_requeue'), 'error');
+            retryBtn.disabled = false;
+          }
+        });
+        actions.appendChild(retryBtn);
+        row.appendChild(actions);
+        list.appendChild(row);
       });
-      actions.appendChild(retryBtn);
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
     scroll.appendChild(list);
     section.appendChild(scroll);
     return section;
@@ -668,11 +655,9 @@ function createResolveContent(): HTMLElement {
   container.appendChild(el('h2', { text: t('step_resolve_title') }));
   container.appendChild(el('p', { text: t('resolve_intro') }));
 
-  if (!state.sourceList) {
-    return createLoadingCard(t('source_loading'));
-  }
+  const isLoading = !state.sourceList || state.sourceLoading;
 
-  const total = getArtistInputs().length;
+  const total = state.sourceList ? getArtistInputs().length : 0;
   const resolvedCount = state.resolvedArtists.length;
   const pendingCount = state.pendingArtists.length;
   const skippedCount = state.skippedArtists.length;
@@ -681,13 +666,13 @@ function createResolveContent(): HTMLElement {
   metrics.appendChild(
     createMetricCard(
       t('app_all_matched'),
-      `${formatNumber(resolvedCount)} / ${formatNumber(total)}`,
+      isLoading ? '-' : `${formatNumber(resolvedCount)} / ${formatNumber(total)}`,
     ),
   );
-  const pendingValue = pendingCount ? formatNumber(pendingCount) : t('app_all_matched');
+  const pendingValue = isLoading ? '-' : pendingCount ? formatNumber(pendingCount) : t('app_all_matched');
   const pendingLabel = pendingCount ? t('metric_pending') : t('app_ready');
   metrics.appendChild(createMetricCard(pendingLabel, pendingValue));
-  metrics.appendChild(createMetricCard(t('metric_skipped'), formatNumber(skippedCount)));
+  metrics.appendChild(createMetricCard(t('metric_skipped'), isLoading ? '-' : formatNumber(skippedCount)));
   container.appendChild(metrics);
 
   const banner = buildResolveStatusBanner(pendingCount, skippedCount);
@@ -696,7 +681,7 @@ function createResolveContent(): HTMLElement {
   }
 
   const previewSection = el('div', { className: 'list-summary' });
-  if (state.resolvedArtists.length) {
+  if (state.resolvedArtists.length || state.resolutionRunning || isLoading) {
     const header = el('div', { className: 'resolved-preview-header' });
     header.appendChild(el('strong', { text: t('resolve_matched_artists') }));
     const controls = el('div', { className: 'resolved-preview-controls' });
@@ -710,7 +695,7 @@ function createResolveContent(): HTMLElement {
     previewSection.appendChild(header);
     previewSection.appendChild(buildResolvedPreviewGrid());
   }
-  if (pendingCount) {
+  if (pendingCount && !isLoading) {
     previewSection.appendChild(
       el('div', {
         className: 'resolve-status-chip is-pending',
@@ -730,92 +715,35 @@ function createResolveContent(): HTMLElement {
   }
 
   const actions = el('div', { className: 'resolve-actions' });
-  if (pendingCount) {
-    const resolveBtnLabel = t('resolve_start_btn');
-    const resolveBtnClass = 'primary-btn';
-    const resolveBtn = el('button', { className: resolveBtnClass, text: resolveBtnLabel });
-    if (state.resolutionRunning || state.sourceLoading || !state.sourceList) {
+  actions.style.minHeight = '50px';
+
+  if (pendingCount > 0 && isConnected()) {
+    const resolveBtn = el('button', {
+      className: 'primary-btn',
+      text: t('resolve_start_btn'),
+    });
+    if (
+      state.resolutionRunning ||
+      state.sourceLoading ||
+      !state.sourceList ||
+      autoResolveInFlight
+    ) {
       setLoading(resolveBtn, true);
     }
     resolveBtn.addEventListener('click', async event => {
       event.preventDefault();
-      if (!isConnected()) {
-        showToast(t('resolve_connect_first'), 'warning');
-        return;
-      }
-      if (state.autoResolveAttempted) {
-        showArtistRosterModal(() => renderRoute());
-        return;
-      }
-      try {
-        if (!state.pendingArtists.length) {
-          showToast(t('resolve_all_resolved'), 'info');
-          return;
-        }
-        setLoading(resolveBtn, true);
-        state.autoResolveAttempted = true;
-        state.resolutionRunning = true;
-        const pendingSnapshot = [...state.pendingArtists];
-        const outcome = await resolveArtists(
-          pendingSnapshot.map(name => ({ type: 'artist', name })),
-          { onAmbiguity: handleAmbiguity },
-          async (result: ResolveArtistsResult) => {
-            const partialOutcome = applyResolveResult(pendingSnapshot, result);
-            await enrichAndRenderArtists(result.resolved);
-            return partialOutcome;
-          },
-        );
-        state.autoResolveCompleted = !outcome.cancelled;
-        if (outcome.resolvedCount) {
-          const label = t(
-            outcome.resolvedCount === 1 ? 'resolve_artist_label' : 'resolve_artists_label',
-          );
-          showToast(
-            t('resolve_auto_resolved_artists', { count: outcome.resolvedCount, label }),
-            'success',
-          );
-        }
-        if (outcome.skippedCount) {
-          const label = t(
-            outcome.skippedCount === 1 ? 'resolve_artist_label' : 'resolve_artists_label',
-          );
-          showToast(t('resolve_skipped_unmatched', { count: outcome.skippedCount, label }), 'info');
-        }
-        if (!outcome.resolvedCount && !outcome.skippedCount && !outcome.unresolvedCount) {
-          showToast(t('toast_no_changes_round'), 'info');
-        }
-        if (outcome.unresolvedCount && !outcome.cancelled) {
-          const label = t(
-            outcome.unresolvedCount === 1 ? 'resolve_artist_label' : 'resolve_artists_label',
-          );
-          showToast(
-            t('resolve_still_ambiguous', { count: outcome.unresolvedCount, label }),
-            'warning',
-          );
-        }
-        if (outcome.cancelled) {
-          showToast(t('toast_review_paused'), 'info');
-        }
-      } catch (err) {
-        console.error(err);
-        showToast(t('resolve_fail'), 'error');
-      } finally {
-        setLoading(resolveBtn, false);
-        renderRoute();
-      }
+      void runAutoResolve({ force: true, onComplete: renderRoute });
     });
     actions.appendChild(resolveBtn);
+  }
 
-    if (state.autoResolveAttempted) {
-      const reviewBtn = el('button', {
-        className: 'secondary-btn',
-        text: t('resolve_review_btn'),
-      });
-      reviewBtn.addEventListener('click', () => {
-        showArtistRosterModal(() => renderRoute());
-      });
-      actions.appendChild(reviewBtn);
-    }
+  if (state.autoResolveCompleted && pendingCount > 0) {
+    const reviewBtn = el('button', {
+      className: 'secondary-btn',
+      text: t('resolve_review_btn'),
+    });
+    reviewBtn.addEventListener('click', () => showArtistRosterModal(() => renderRoute()));
+    actions.appendChild(reviewBtn);
   }
 
   const nextBtn = el('button', {
@@ -830,7 +758,7 @@ function createResolveContent(): HTMLElement {
     }
     navigate('#/preview');
   });
-  if (!state.resolvedArtists.length) {
+  if (!state.resolvedArtists.length || state.resolutionRunning || isLoading) {
     nextBtn.setAttribute('disabled', 'true');
     nextBtn.setAttribute('title', t('resolve_next_disabled'));
   }
@@ -839,8 +767,7 @@ function createResolveContent(): HTMLElement {
   if (HAS_SINGLE_LIST) {
     const reloadBtn = el('button', { className: 'secondary-btn', text: t('resolve_reload_btn') });
     reloadBtn.addEventListener('click', () => {
-      invalidateSpotifyCaches();
-      maybeAutoLoadSelectedList({ force: true });
+      void maybeAutoLoadSelectedList({ force: true }).then(() => renderRoute());
     });
     actions.appendChild(reloadBtn);
   } else {
@@ -857,53 +784,49 @@ function createResolveContent(): HTMLElement {
   return container;
 }
 
-export function resetPrefetch(): void {
-  prefetchedLibrary = false;
-}
-
-export function runPrefetch(): void {
-  // Pre-fetch user's library data in the background while they are on the resolve step.
-  // This makes the "Preview" step feel much faster.
-  if (isConnected() && !prefetchedLibrary) {
-    prefetchedLibrary = true;
-    void meFollowingArtists();
-    void meLikedTracks();
-    void meSavedAlbums();
-  }
-}
-
-export function renderResolveStep(): Node {
-  if (!state.sourceList) {
-    if (HAS_SINGLE_LIST) {
-      void maybeAutoLoadSelectedList({ force: true }).then(renderRoute);
-      return buildShell(createLoadingCard(t('source_loading')), {
-        activeHash: '#/resolve',
-        title: t('stepper_title'),
-      });
+async function loadAndEnrich(): Promise<void> {
+    // 2. Fetch all necessary data in parallel.
+    if (isConnected()) {
+        if (!state.followingArtistIds.length) {
+            state.followingArtistIds = await meFollowingArtists();
+        }
+        // 3. Enrich all resolved artists (from cache or previous runs) with data from Spotify API.
+        if (state.resolvedArtists.length > 0) {
+            await enrichAndRenderArtists(state.resolvedArtists);
+        }
     }
+}
+
+async function loadDataAndResolve(): Promise<void> {
+    await loadAndEnrich();
+    void runAutoResolve({ onComplete: renderRoute });
+
+    if (isConnected()) {
+      void meLikedTracks();
+      void meSavedAlbums();
+    }
+}
+
+export async function renderResolveStep(): Promise<Node> {
+  // --- Phase 1: Kick off async work ---
+  if (!state.sourceList && HAS_SINGLE_LIST && !state.sourceLoading) {
+    void maybeAutoLoadSelectedList({ force: true });
+  } else if (!state.sourceList && !HAS_SINGLE_LIST) {
     showToast(t('toast_load_list_first'), 'warning');
     navigate('#/app');
-    return renderSourceStep();
+    return document.createDocumentFragment();
   }
 
-  void hydrateResolvedFromCache();
-  runPrefetch();
-
-  // Use IntersectionObserver to trigger auto-resolve only when the element is visible.
-  // This is more reliable on mobile where page visibility can be inconsistent.
-  const observer = new IntersectionObserver(
-    (entries, obs) => {
-      if (entries[0]?.isIntersecting) {
-        void runAutoResolve();
-        obs.disconnect(); // Run only once
-      }
-    },
-    { threshold: 0.1 },
-  );
+  // --- Phase 2: Render with loading state ---
   const content = createResolveContent();
-  observer.observe(content);
+  if (state.sourceList) {
+    loadDataAndResolve();
+  }
 
-  return buildShell(content, { activeHash: '#/resolve', title: t('stepper_title') });
+  return buildShell(content, {
+    activeHash: '#/resolve',
+    title: t('stepper_title'),
+  });
 }
 
 function isArtistFollowed(id?: string | null): boolean {

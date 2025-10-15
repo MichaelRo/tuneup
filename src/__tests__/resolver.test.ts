@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveArtists } from '../lib/resolver.js';
-import type { Item, PurgeState } from '../types/index.js';
-
-vi.mock('../lib/spotify.js', () => ({
-  apiGET: vi.fn(),
-}));
-
-vi.mock('../lib/state.js', () => ({
+vi.mock('../app/state');
+vi.mock('../lib/state', () => ({
   loadState: vi.fn(),
   saveState: vi.fn(),
 }));
+vi.mock('../spotify/client', () => ({
+  apiGET: vi.fn(),
+}));
 
-const spotify = await import('../lib/spotify.js');
+import { resolveArtists } from '../lib/resolver.js';
+import type { Item, PurgeState } from '../types/index.js';
+
+const spotify = await import('../spotify/client.js');
 const stateMod = await import('../lib/state.js');
 const apiGET = vi.mocked(spotify.apiGET);
 const loadState = vi.mocked(stateMod.loadState);

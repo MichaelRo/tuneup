@@ -1,8 +1,9 @@
-import { state } from '../app/state.js';
+import { renderRoute } from '../app/routing';
+import { AppState, invalidateGeneratedPlan, state } from '../app/state.js';
 import { t } from '../lib/i18n.js';
 import { canonicalName } from '../lib/resolver.js';
-import { el, spinner } from '../lib/ui.js';
 import type { Item, ResolvedArtist } from '../types/index.js';
+import { el } from '../ui';
 
 export type ArtistDisplay = {
   id?: string | null;
@@ -26,13 +27,26 @@ export function createMetricCard(label: string, value: string): HTMLElement {
   return card;
 }
 
-export function createLoadingCard(message: string): HTMLElement {
-  const card = el('div', { className: 'glass-card step' });
-  const row = el('div', { className: 'source-loading' });
-  row.appendChild(spinner());
-  row.appendChild(el('span', { text: message }));
-  card.appendChild(row);
-  return card;
+export function createLoadingCard(text: string, promise?: Promise<HTMLElement>): HTMLElement {
+  const container = el('div', { className: 'glass-card is-loading' });
+  const spinner = el('div', { className: 'spinner spinner-medium' });
+  const label = el('div', { text });
+  container.appendChild(spinner);
+  container.appendChild(label);
+
+  if (promise) {
+    promise
+      .then(content => {
+        container.replaceWith(content);
+      })
+      .catch(err => {
+        console.error('Failed to load card content', err);
+        label.textContent = t('error_generic');
+        spinner.remove();
+      });
+  }
+
+  return container;
 }
 
 export function findSourceItemByName(name: string): Item | undefined {
@@ -145,4 +159,23 @@ export function buildArtistChip(entry: ResolvedArtist): HTMLElement {
     entry.input === entry.name ? entry.name : `${entry.input} → ${entry.name}`,
   );
   return chip;
+}
+
+export function buildToggle(key: keyof AppState['options'], label: string): HTMLElement {
+  const wrapper = el('label', { className: 'option-toggle' });
+  const toggle = el('div', { className: 'toggle-switch' });
+  const input = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
+  input.id = `option-${key}`;
+  wrapper.htmlFor = input.id;
+  input.checked = state.options[key];
+  input.addEventListener('change', () => {
+    state.options[key] = input.checked;
+    invalidateGeneratedPlan();
+    renderRoute();
+  });
+  toggle.appendChild(input);
+  toggle.appendChild(el('span', { className: 'toggle-slider' }));
+  wrapper.appendChild(toggle);
+  wrapper.appendChild(el('span', { text: label }));
+  return wrapper;
 }

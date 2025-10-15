@@ -1,15 +1,16 @@
+import { beginAuthFlow } from '../auth';
 import { bindLanguageToggles } from '../lib/i18n';
-import { beginAuthFlow } from '../lib/spotify';
-import { render, renderNode } from '../lib/ui';
-import { renderApplyStep } from '../views/apply';
-import { renderLanding } from '../views/landing';
-import { renderPreviewStep } from '../views/preview';
-import { renderReportStep } from '../views/report';
-import { renderResolveStep } from '../views/resolve';
-import { renderSourceStep } from '../views/source';
+import { render, renderNode } from '../ui';
+import { renderApplyStep } from '../views/apply.js';
+import { renderLanding } from '../views/landing.js';
+import { renderPreviewStep } from '../views/preview.js';
+import { renderReportStep } from '../views/report.js';
+import { renderResolveStep } from '../views/resolve.js';
+import { renderSettings } from '../views/settings.js';
+import { renderSourceStep } from '../views/source.js';
 
-import { ALL_ROUTES, type AppRoute, ROUTE_DEFAULT } from './config';
-import { handleLogout, isConnected } from './state';
+import { ALL_ROUTES, type AppRoute, ROUTE_DEFAULT } from './config.js';
+import { handleLogout, isConnected } from './state.js';
 
 const rootElement = document.getElementById('app-root');
 if (!(rootElement instanceof HTMLElement)) {
@@ -17,7 +18,7 @@ if (!(rootElement instanceof HTMLElement)) {
 }
 const root: HTMLElement = rootElement;
 
-const routeHandlers = new Map<AppRoute, () => string | Node>();
+const routeHandlers = new Map<AppRoute, () => string | Node | Promise<Node>>();
 
 export function initRouting(): void {
   routeHandlers.set(ROUTE_DEFAULT, renderLanding);
@@ -26,6 +27,7 @@ export function initRouting(): void {
   routeHandlers.set('#/preview', renderPreviewStep);
   routeHandlers.set('#/apply', renderApplyStep);
   routeHandlers.set('#/report', renderReportStep);
+  routeHandlers.set('#/settings', renderSettings);
 }
 
 function normalizeHash(raw: string): AppRoute {
@@ -42,12 +44,13 @@ export function navigate(hash: AppRoute): void {
   }
 }
 
-export function renderRoute(): void {
+export async function renderRoute(): Promise<void> {
   const hash = normalizeHash(location.hash);
+
   const renderer = routeHandlers.get(hash) ?? routeHandlers.get(ROUTE_DEFAULT);
   if (!renderer) return;
 
-  const output = renderer();
+  const output = await renderer();
   if (output instanceof Node) {
     renderNode(output, root);
   } else {

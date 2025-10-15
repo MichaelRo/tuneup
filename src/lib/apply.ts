@@ -1,6 +1,5 @@
+import { removeLikedTracks, removeSavedAlbums, unfollowArtists } from '../spotify/api.js';
 import type { Plan, ProgressEvt, ProgressPhase } from '../types/index.js';
-
-import { removeLikedTracksBatch, removeSavedAlbumsBatch, unfollowArtistsBatch } from './spotify.js';
 
 const BATCH_SIZE = 50;
 
@@ -56,7 +55,7 @@ export async function runPlan(
   onProgress?: (event: ProgressEvt) => void,
 ): Promise<void> {
   if (!plan) return;
-  await processPhase('unfollow', plan.artistsToUnfollow ?? [], unfollowArtistsBatch, onProgress);
-  await processPhase('tracks', plan.trackIdsToRemove ?? [], removeLikedTracksBatch, onProgress);
-  await processPhase('albums', plan.albumIdsToRemove ?? [], removeSavedAlbumsBatch, onProgress);
+  await processPhase('unfollow', plan.artistsToUnfollow ?? [], unfollowArtists, onProgress);
+  await processPhase('tracks', plan.trackIdsToRemove ?? [], removeLikedTracks, onProgress);
+  await processPhase('albums', plan.albumIdsToRemove ?? [], removeSavedAlbums, onProgress);
 }

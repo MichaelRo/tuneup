@@ -10,6 +10,7 @@ dist
 .vite
 vite.svg
 *.local
+public/mockServiceWorker.js
 
 # Environment files
 .env

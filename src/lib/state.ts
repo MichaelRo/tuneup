@@ -1,5 +1,7 @@
 import type { PurgeState } from '../types/index.js';
 
+import { checkStorageAvailability } from './storage.js';
+
 const STORAGE_KEY = 'tuneup_state';
 
 const DEFAULT_STATE: PurgeState = {
@@ -48,6 +50,10 @@ export async function loadState(): Promise<PurgeState> {
   if (memoryState) {
     return deepClone(memoryState);
   }
+  if (!checkStorageAvailability()) {
+    console.warn('LocalStorage not available, using in-memory state.');
+    return deepClone(DEFAULT_STATE);
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -66,8 +72,10 @@ export async function loadState(): Promise<PurgeState> {
 export async function saveState(next: PurgeState): Promise<void> {
   const normalized = normalizeState(next);
   memoryState = deepClone(normalized);
+  if (!checkStorageAvailability()) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryState));
+    const serialized = JSON.stringify(memoryState);
+    localStorage.setItem(STORAGE_KEY, serialized);
   } catch (err) {
     console.warn('Unable to persist TuneUp state', err);
   }
@@ -86,6 +94,7 @@ export async function updateState(
 
 export function resetState(): void {
   memoryState = deepClone(DEFAULT_STATE);
+  if (!checkStorageAvailability()) return;
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (err) {

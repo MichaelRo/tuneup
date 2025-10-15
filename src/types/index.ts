@@ -1,3 +1,8 @@
+export type CacheEntry<T> = {
+  value: T;
+  expires: number;
+};
+
 export type ProviderId = 'nmg' | 'curated';
 
 export type Item = {
@@ -97,6 +102,16 @@ export type PlanRemovalReason =
   | { type: 'artist'; id: string; name?: string }
   | { type: 'label'; label: string };
 
+export type PlanRemoval = {
+  id: string;
+  name?: string;
+  artistNames: string[];
+  albumName?: string;
+  album?: { imageUrl?: string };
+  imageUrl?: string;
+  reasons: PlanRemovalReason[];
+};
+
 export type PlanTrackRemoval = {
   id: string;
   name?: string;
@@ -182,4 +197,9 @@ export type CuratedListConfig = {
   tags?: string[];
   badge?: string;
   subtitle?: string;
+};
+
+export type ApiHooks = {
+  onRateLimit?: (retryAfterSeconds: number) => void;
+  onRetry?: (attempt: number, status: number) => void;
 };

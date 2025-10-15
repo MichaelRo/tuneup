@@ -1,112 +1,8 @@
-import type { ToastType } from '../types/ui.ts';
+// Modal system with focus trap and keyboard navigation
+// WHY: Centralized modal management with proper accessibility
 
-const DEFAULT_ROOT_ID = 'app-root';
-
-let toastContainer: HTMLDivElement | null = null;
-
-function ensureRoot(root?: Element | null): HTMLElement {
-  const node = (root || document.getElementById(DEFAULT_ROOT_ID)) as HTMLElement | null;
-  if (!node) {
-    throw new Error(`Missing root element #${DEFAULT_ROOT_ID}`);
-  }
-  return node;
-}
-
-export function clear(root?: Element | null): void {
-  ensureRoot(root).innerHTML = '';
-}
-
-export function render(html: string, root?: Element | null): void {
-  ensureRoot(root).innerHTML = html;
-}
-
-export function renderNode(node: Node, root?: Element | null): void {
-  const target = ensureRoot(root);
-  target.innerHTML = '';
-  target.appendChild(node);
-}
-
-export type ElementOptions = {
-  className?: string;
-  text?: string;
-  attrs?: Record<string, string>;
-  on?: Record<string, EventListener>;
-  children?: Array<Node | string>;
-};
-
-export function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options: ElementOptions = {},
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (options.className) node.className = options.className;
-  if (options.text) node.textContent = options.text;
-  if (options.attrs) {
-    Object.entries(options.attrs).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        node.setAttribute(key, value);
-      }
-    });
-  }
-  if (options.on) {
-    Object.entries(options.on).forEach(([eventName, handler]) => {
-      if (handler) node.addEventListener(eventName, handler);
-    });
-  }
-  if (options.children) {
-    options.children.forEach(child => {
-      if (typeof child === 'string') {
-        node.appendChild(document.createTextNode(child));
-      } else {
-        node.appendChild(child);
-      }
-    });
-  }
-  return node;
-}
-
-function ensureToastContainer(): HTMLDivElement {
-  if (!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.className = 'toast-container';
-    document.body.appendChild(toastContainer);
-  }
-  return toastContainer;
-}
-
-export function showToast(message: string, type: ToastType = 'info'): void {
-  const container = ensureToastContainer();
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  container.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.classList.add('toast-visible');
-  });
-
-  setTimeout(() => {
-    toast.classList.remove('toast-visible');
-    window.setTimeout(() => {
-      toast.remove();
-      if (!container.children.length) {
-        container.remove();
-        toastContainer = null;
-      }
-    }, 200);
-  }, 3500);
-}
-
-export function setLoading(target: HTMLButtonElement | null, isLoading: boolean): void {
-  if (!target) return;
-  if (isLoading) {
-    target.classList.add('is-loading');
-    target.disabled = true;
-  } else {
-    target.classList.remove('is-loading');
-    target.disabled = false;
-  }
-}
+import { trapFocus, restoreFocus } from './a11y.js';
+import { el } from './core.js';
 
 export type ModalChoice<T> = {
   label: string | Node;
@@ -186,6 +82,12 @@ export function showChoiceModal<T>({
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
 
+    // Store previously focused element for restoration
+    const previouslyFocused = document.activeElement as HTMLElement;
+
+    // Set up focus trap
+    const cleanupFocusTrap = trapFocus(modal);
+
     const keyHandler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         cleanup();
@@ -195,8 +97,12 @@ export function showChoiceModal<T>({
 
     const cleanup = () => {
       document.removeEventListener('keydown', keyHandler);
+      cleanupFocusTrap();
       backdrop.classList.remove('modal-visible');
-      window.setTimeout(() => backdrop.remove(), 200);
+      window.setTimeout(() => {
+        backdrop.remove();
+        restoreFocus(previouslyFocused);
+      }, 200);
     };
 
     backdrop.addEventListener('click', event => {
@@ -234,11 +140,20 @@ export function showSimpleModal({
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
 
+  // Store previously focused element for restoration
+  const previouslyFocused = document.activeElement as HTMLElement;
+
+  // Set up focus trap
+  const cleanupFocusTrap = trapFocus(modal);
+
   const cleanup = () => {
     backdrop.classList.remove('modal-visible');
-    window.setTimeout(() => backdrop.remove(), 200);
-    onClose?.();
-    document.removeEventListener('keydown', handleKey);
+    window.setTimeout(() => {
+      backdrop.remove();
+      restoreFocus(previouslyFocused);
+      onClose?.();
+    }, 200);
+    cleanupFocusTrap();
   };
 
   const handleKey = (event: KeyboardEvent) => {
@@ -251,10 +166,4 @@ export function showSimpleModal({
     if (event.target === backdrop) cleanup();
   });
   document.addEventListener('keydown', handleKey);
-}
-
-export type SpinnerSize = 'small' | 'medium' | 'large';
-
-export function spinner(size: SpinnerSize = 'small'): HTMLDivElement {
-  return el('div', { className: `spinner spinner-${size}` });
 }

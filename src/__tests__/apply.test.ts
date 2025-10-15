@@ -1,22 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { runPlan } from '../lib/apply.js';
-import type { Plan } from '../types/index.js';
-
-vi.mock('../lib/spotify.js', async () => {
-  const actual = await vi.importActual<typeof import('../lib/spotify.js')>('../lib/spotify.js');
+vi.mock('../app/state');
+vi.mock('../app/routing');
+vi.mock('../lib/state', () => ({
+  loadState: vi.fn(),
+  saveState: vi.fn(),
+}));
+vi.mock('../spotify/api', async () => {
+  const actual = await vi.importActual<typeof import('../spotify/api.js')>('../spotify/api');
   return {
     ...actual,
-    removeLikedTracksBatch: vi.fn(),
-    removeSavedAlbumsBatch: vi.fn(),
-    unfollowArtistsBatch: vi.fn(),
+    removeLikedTracks: vi.fn(),
+    removeSavedAlbums: vi.fn(),
+    unfollowArtists: vi.fn(),
   };
 });
 
-const spotify = await import('../lib/spotify.js');
-const unfollowArtistsBatch = vi.mocked(spotify.unfollowArtistsBatch);
-const removeLikedTracksBatch = vi.mocked(spotify.removeLikedTracksBatch);
-const removeSavedAlbumsBatch = vi.mocked(spotify.removeSavedAlbumsBatch);
+import { runPlan } from '../lib/apply.js';
+import type { ApiHooks, Plan } from '../types/index.js';
+
+const spotify = await import('../spotify/api.js');
+const unfollowArtists = vi.mocked(spotify.unfollowArtists);
+const removeLikedTracks = vi.mocked(spotify.removeLikedTracks);
+const removeSavedAlbums = vi.mocked(spotify.removeSavedAlbums);
 
 describe('runPlan', () => {
   afterEach(() => {
@@ -26,15 +32,15 @@ describe('runPlan', () => {
   it('processes phases sequentially and reports progress events', async () => {
     const progressEvents: Array<Record<string, unknown>> = [];
 
-    unfollowArtistsBatch.mockImplementation(async (_ids, hooks) => {
+    unfollowArtists.mockImplementation(async (_ids: string[], hooks?: ApiHooks) => {
       void _ids;
       hooks?.onRateLimit?.(12);
     });
-    removeLikedTracksBatch.mockImplementation(async (_ids, hooks) => {
+    removeLikedTracks.mockImplementation(async (_ids: string[], hooks?: ApiHooks) => {
       void _ids;
       hooks?.onRetry?.(2, 429);
     });
-    removeSavedAlbumsBatch.mockImplementation(async (_ids, _hooks) => {
+    removeSavedAlbums.mockImplementation(async (_ids: string[], _hooks?: ApiHooks) => {
       void _ids;
       void _hooks;
     });
@@ -54,9 +60,9 @@ describe('runPlan', () => {
 
     await runPlan(plan, onProgress);
 
-    expect(unfollowArtistsBatch).toHaveBeenCalledWith(['a1', 'a2', 'a3'], expect.any(Object));
-    expect(removeLikedTracksBatch).toHaveBeenCalledWith(['t1', 't2'], expect.any(Object));
-    expect(removeSavedAlbumsBatch).toHaveBeenCalledWith(['al1'], expect.any(Object));
+    expect(unfollowArtists).toHaveBeenCalledWith(['a1', 'a2', 'a3'], expect.any(Object));
+    expect(removeLikedTracks).toHaveBeenCalledWith(['t1', 't2'], expect.any(Object));
+    expect(removeSavedAlbums).toHaveBeenCalledWith(['al1'], expect.any(Object));
 
     expect(onProgress).toHaveBeenCalledTimes(5);
     expect(progressEvents[0]).toEqual({
@@ -74,6 +80,6 @@ describe('runPlan', () => {
 
   it('short-circuits when plan is null', async () => {
     await runPlan(null, vi.fn());
-    expect(unfollowArtistsBatch).not.toHaveBeenCalled();
+    expect(unfollowArtists).not.toHaveBeenCalled();
   });
 });

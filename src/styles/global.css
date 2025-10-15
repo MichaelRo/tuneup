@@ -1486,13 +1486,9 @@ input:checked + .toggle-slider::before {
   align-items: flex-start;
 }
 
-[dir='rtl'] .app-shell {
-  direction: rtl;
-}
-
 @media (max-width: 640px) {
   .artist-chip-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: var(--space-2);
   }
 }

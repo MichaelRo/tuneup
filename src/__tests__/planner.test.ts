@@ -4,14 +4,14 @@ import { buildPlan } from '../lib/planner';
 import type { Album, PlanOptions, Track } from '../types';
 
 // Mock the spotify module
-vi.mock('../lib/spotify.js', () => ({
+vi.mock('../spotify/api.js', () => ({
   meFollowingArtists: vi.fn(),
   meLikedTracks: vi.fn(),
   meSavedAlbums: vi.fn(),
   albumsFull: vi.fn(),
 }));
 
-const spotify = await import('../lib/spotify.js');
+const spotify = await import('../spotify/api.js');
 const meFollowingArtists = vi.mocked(spotify.meFollowingArtists);
 const meLikedTracks = vi.mocked(spotify.meLikedTracks);
 const meSavedAlbums = vi.mocked(spotify.meSavedAlbums);

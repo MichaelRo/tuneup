@@ -1,10 +1,11 @@
+import { albumsFull, meFollowingArtists, meLikedTracks, meSavedAlbums } from '../spotify/api.js';
 import type {
   Album,
   Plan,
   PlanContext,
   PlanOptions,
-  PlanAlbumRemoval,
   PlanProgress,
+  PlanRemoval,
   PlanRemovalReason,
   Track,
 } from '../types/index.js';
@@ -16,7 +17,6 @@ import {
   pickTracksByArtists,
   pickTracksByLabels,
 } from './matcher.js';
-import { albumsFull, meFollowingArtists, meLikedTracks, meSavedAlbums } from './spotify.js';
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
@@ -44,26 +44,26 @@ async function enrichAlbumMetadata(
   if (!albumIdsToEnrich.size) return;
 
   const details = await albumsFull(Array.from(albumIdsToEnrich));
-  const byId = new Map(details.map(album => [album.id, album] as const));
+  const byId = new Map(details.map((album: Album) => [album.id, album] as const));
 
   likedTracks.forEach(track => {
     if (!track.album?.id) return;
     const full = byId.get(track.album.id);
     if (full) {
-      track.album.label = track.album.label || full.label;
-      track.album.release_date = track.album.release_date || full.release_date;
-      track.album.imageUrl = track.album.imageUrl || full.images?.[0]?.url;
-      track.album.name = track.album.name || full.name;
+      track.album.label = track.album.label ?? full.label;
+      track.album.release_date = track.album.release_date ?? full.release_date;
+      track.album.imageUrl = track.album.imageUrl ?? full.imageUrl;
+      track.album.name = track.album.name ?? full.name;
     }
   });
 
   savedAlbums.forEach(album => {
     const full = byId.get(album.id);
     if (full) {
-      album.label = album.label || full.label;
-      album.release_date = album.release_date || full.release_date;
-      album.imageUrl = album.imageUrl || full.images?.[0]?.url;
-      album.name = album.name || full.name;
+      album.label = album.label ?? full.label;
+      album.release_date = album.release_date ?? full.release_date;
+      album.imageUrl = album.imageUrl ?? full.imageUrl;
+      album.name = album.name ?? full.name;
     }
   });
 }
@@ -165,7 +165,7 @@ export async function buildPlan(
 
   callbacks.onProgress?.({ stage: 'following' });
   const following = await meFollowingArtists({
-    onProgress: count =>
+    onProgress: (count: number) =>
       callbacks.onProgress?.({ stage: 'following', loaded: count, total: undefined }),
   });
   callbacks.onProgress?.({ stage: 'following', loaded: following.length, total: following.length });
@@ -180,7 +180,7 @@ export async function buildPlan(
       },
     };
     return {
-      artistsToUnfollow: following.filter(id => bannedArtistIds.has(id)),
+      artistsToUnfollow: following.filter((id: string) => bannedArtistIds.has(id)),
       trackIdsToRemove: [],
       albumIdsToRemove: [],
       tracksToRemove: [],
@@ -192,14 +192,16 @@ export async function buildPlan(
   let likedTracks: Track[] = [];
   callbacks.onProgress?.({ stage: 'tracks', loaded: 0, total: 0 });
   likedTracks = await meLikedTracks({
-    onProgress: ({ loaded, total }) => callbacks.onProgress?.({ stage: 'tracks', loaded, total }),
+    onProgress: ({ loaded, total }: { loaded: number; total?: number }) =>
+      callbacks.onProgress?.({ stage: 'tracks', loaded, total }),
   });
 
   let savedAlbums: Album[] = [];
   if (includeAlbums || bannedLabels.size) {
     callbacks.onProgress?.({ stage: 'albums', loaded: 0, total: 0 });
     savedAlbums = await meSavedAlbums({
-      onProgress: ({ loaded, total }) => callbacks.onProgress?.({ stage: 'albums', loaded, total }),
+      onProgress: ({ loaded, total }: { loaded: number; total?: number }) =>
+        callbacks.onProgress?.({ stage: 'albums', loaded, total }),
     });
   }
 
@@ -219,7 +221,7 @@ export async function buildPlan(
     callbacks.onProgress?.({ stage: 'enrich', loaded: 1, total: 1 });
   }
 
-  const artistsToUnfollow = following.filter(id => bannedArtistIds.has(id));
+  const artistsToUnfollow = following.filter((id: string) => bannedArtistIds.has(id));
 
   const trackIdsFromArtists = pickTracksByArtists(likedTracks, bannedArtistIds, strictPrimary);
   const albumIdsFromArtists = includeAlbums
@@ -304,20 +306,22 @@ export async function buildPlan(
   const tracksToRemove = trackIdsToRemove
     .map(id => likedTracks.find(track => track.id === id))
     .filter((track): track is Track => Boolean(track))
-    .map(track => ({
-      id: track.id,
-      name: track.name,
-      artistNames: track.artists.map(artist => artist.name ?? artist.id),
-      albumName: track.album.name,
-      album: { imageUrl: track.album.imageUrl },
-      reasons: trackReasons.get(track.id) ?? [],
-    }));
+    .map(
+      (track): PlanRemoval => ({
+        id: track.id,
+        name: track.name,
+        artistNames: track.artists.map(artist => artist.name ?? artist.id),
+        albumName: track.album.name,
+        album: { imageUrl: track.album.imageUrl },
+        reasons: trackReasons.get(track.id) ?? [],
+      }),
+    );
 
   const albumsToRemove = albumIdsToRemove
     .map(id => savedAlbums.find(album => album.id === id))
     .filter((album): album is Album => Boolean(album))
     .map(
-      (album): PlanAlbumRemoval => ({
+      (album): PlanRemoval => ({
         id: album.id,
         name: album.name,
         artistNames: album.artists.map(artist => artist.name ?? artist.id),

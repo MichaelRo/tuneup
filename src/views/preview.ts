@@ -4,15 +4,13 @@ import {
   state,
   initialPreviewProgress,
   getLabelInputs,
-  invalidateGeneratedPlan,
-  AppState,
   resetPlanExclusions,
   getArtistInputs,
 } from '../app/state';
+import { beginAuthFlow } from '../auth';
 import { t, formatNumber } from '../lib/i18n';
 import { buildPlan, getLastPlanContext, getLastFollowingSnapshot } from '../lib/planner';
-import { SpotifyAuthError, beginAuthFlow } from '../lib/spotify';
-import { el, setLoading, showToast, spinner } from '../lib/ui.js';
+import { SpotifyAuthError } from '../spotify';
 import type {
   Plan,
   PlanAlbumRemoval,
@@ -20,6 +18,7 @@ import type {
   PlanTrackRemoval,
   ResolvedArtist,
 } from '../types';
+import { el, setLoading, showToast, spinner } from '../ui';
 
 import { buildArtistChip, createLoadingCard, normalizeNameForCompare } from './components.js';
 import { buildShell } from './shell';
@@ -244,25 +243,6 @@ function buildLabelReason(labels: string[]): HTMLElement {
   return wrapper;
 }
 
-function buildToggle(key: keyof AppState['options'], label: string): HTMLElement {
-  const wrapper = el('label', { className: 'option-toggle' });
-  const toggle = el('div', { className: 'toggle-switch' });
-  const input = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
-  input.id = `option-${key}`;
-  wrapper.htmlFor = input.id;
-  input.checked = state.options[key];
-  input.addEventListener('change', () => {
-    state.options[key] = input.checked;
-    invalidateGeneratedPlan();
-    renderRoute();
-  });
-  toggle.appendChild(input);
-  toggle.appendChild(el('span', { className: 'toggle-slider' }));
-  wrapper.appendChild(toggle);
-  wrapper.appendChild(el('span', { text: label }));
-  return wrapper;
-}
-
 async function runPreview(button: HTMLButtonElement): Promise<void> {
   if (!state.resolvedArtists.length && state.options.includeLabelCleanup) {
     showToast(t('preview_artists_or_disable_labels'), 'warning');
@@ -345,11 +325,11 @@ async function runPreview(button: HTMLButtonElement): Promise<void> {
     updatePreviewProgress('done', 1);
     showToast(t('preview_ready'), 'success');
   } catch (err) {
-    if (err instanceof SpotifyAuthError || (err && typeof err === 'object' && 'code' in err)) {
+    if (err instanceof SpotifyAuthError) {
       if (err.code === 'insufficient_scope') {
         showToast(t('error_insufficient_scope'), 'warning');
         void beginAuthFlow();
-      } else if ('message' in err && typeof err.message === 'string') {
+      } else {
         showToast(err.message, 'error');
       }
     } else if (err) {
@@ -367,12 +347,6 @@ function createPreviewContent(): HTMLElement {
   const container = el('div', { className: 'glass-card step step-preview' });
   container.appendChild(el('h2', { text: t('step_preview_title') }));
   container.appendChild(el('p', { text: t('preview_intro') }));
-
-  const optionsBox = el('div', { className: 'preview-options' });
-  optionsBox.appendChild(buildToggle('strictPrimary', t('preview_option_strict')));
-  optionsBox.appendChild(buildToggle('includeAlbums', t('preview_option_albums')));
-  optionsBox.appendChild(buildToggle('includeLabelCleanup', t('preview_option_labels')));
-  container.appendChild(optionsBox);
 
   const actions = el('div', { className: 'preview-actions' });
   const runBtn = el('button', { className: 'primary-btn', text: t('preview_run_btn') });
@@ -410,7 +384,6 @@ function createPreviewContent(): HTMLElement {
       const inner = el('div', { className: 'progress-inner' });
       inner.style.width = `${overallPercent}%`;
       bar.appendChild(inner);
-      progressRow.appendChild(bar);
       progressRow.appendChild(
         el('span', {
           className: 'preview-progress-overall',
@@ -435,7 +408,7 @@ function createPreviewContent(): HTMLElement {
 export function renderPreviewStep(): Node {
   if (!state.sourceList) {
     if (HAS_SINGLE_LIST) {
-      maybeAutoLoadSelectedList();
+      void maybeAutoLoadSelectedList().then(() => renderRoute());
       return buildShell(createLoadingCard(t('source_loading')), {
         activeHash: '#/resolve',
         title: t('stepper_title'),

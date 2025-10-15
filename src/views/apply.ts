@@ -2,9 +2,9 @@ import { navigate, renderRoute } from '../app/routing.js';
 import { APPLY_PHASES, state, type PhaseStatus, type ApplyPhase } from '../app/state.js';
 import { runPlan } from '../lib/apply.js';
 import { t, formatNumber } from '../lib/i18n.js';
-import { invalidateSpotifyCaches } from '../lib/spotify.js';
 import { updateState } from '../lib/state.js';
-import { el, setLoading, showToast } from '../lib/ui.js';
+import { invalidateSpotifyCaches } from '../spotify';
+import { el, setLoading, showToast } from '../ui';
 
 import { buildShell } from './shell.js';
 

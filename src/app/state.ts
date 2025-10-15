@@ -1,8 +1,7 @@
-import { clearToken, invalidateSpotifyCaches } from '../lib/spotify.js';
-import { updateState } from '../lib/state.js';
-import { showToast } from '../lib/ui.js';
+import { resetState as resetPersistentState } from '../lib/state.js';
+import { clearToken, invalidateSpotifyCaches } from '../spotify';
 import type { ArtistList, Item, Plan, PlanContext, ResolvedArtist } from '../types/index.js';
-import { resetPrefetch } from '../views/resolve.js';
+import { showToast } from '../ui';
 
 import { curatedLists } from './config.js';
 import { renderRoute } from './routing.js';
@@ -53,6 +52,7 @@ export type AppState = {
     strictPrimary: boolean;
     includeAlbums: boolean;
     includeLabelCleanup: boolean;
+    showRateLimitBanner: boolean;
   };
   apply: ApplyState;
   autoResolveAttempted: boolean;
@@ -93,33 +93,42 @@ export function initialPreviewProgress(): AppState['previewProgress'] {
 
 const DEFAULT_LIST_ID = curatedLists[0]?.id ?? 'nmg';
 
-export const state: AppState = {
-  selectedListId: DEFAULT_LIST_ID,
-  sourceList: null,
-  sourceLoading: false,
-  resolvedArtists: [],
-  pendingArtists: [],
-  skippedArtists: [],
-  followingArtistIds: [],
-  resolutionRunning: false,
-  plan: null,
-  planGeneratedAt: null,
-  planMeta: { before: null, after: null },
-  planExclusions: {
-    artists: new Set(),
-    tracks: new Set(),
-    albums: new Set(),
-  },
-  options: {
-    strictPrimary: false,
-    includeAlbums: true,
-    includeLabelCleanup: true,
-  },
-  apply: initialApplyState(),
-  autoResolveAttempted: false,
-  autoResolveCompleted: false,
-  previewProgress: initialPreviewProgress(),
-};
+export function getInitialState(): AppState {
+  return {
+    selectedListId: DEFAULT_LIST_ID,
+    sourceList: null,
+    sourceLoading: false,
+    resolvedArtists: [],
+    pendingArtists: [],
+    skippedArtists: [],
+    followingArtistIds: [],
+    resolutionRunning: false,
+    plan: null,
+    planGeneratedAt: null,
+    planMeta: { before: null, after: null },
+    planExclusions: {
+      artists: new Set(),
+      tracks: new Set(),
+      albums: new Set(),
+    },
+    options: {
+      strictPrimary: false,
+      includeAlbums: true,
+      includeLabelCleanup: true,
+      showRateLimitBanner: true,
+    },
+    apply: initialApplyState(),
+    autoResolveAttempted: false,
+    autoResolveCompleted: false,
+    previewProgress: initialPreviewProgress(),
+  };
+}
+
+export let state: AppState = getInitialState();
+
+export function resetState(): void {
+  state = getInitialState();
+}
 
 let _connected = false;
 export const autoLoadedLists = new Set<string>();
@@ -186,14 +195,8 @@ export function handleLogout(): void {
   clearToken();
   invalidateSpotifyCaches();
   setConnected(false);
-  state.followingArtistIds = [];
-  invalidateGeneratedPlan();
-  resetPrefetch();
+  resetState();
+  resetPersistentState();
   showToast('Disconnected from Spotify.', 'info');
-  void updateState(draft => {
-    draft.nameToId = {};
-    draft.ops = {};
-  }).then(() => {
-    renderRoute();
-  });
+  renderRoute();
 }
